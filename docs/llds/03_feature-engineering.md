@@ -53,6 +53,7 @@ FeatureMatrix
   X: np.ndarray           # shape (n_samples, n_features)
   y: np.ndarray           # shape (n_samples,) — phenotype labels
   sample_ids: list[str]
+  splits: list[str]       # parallel to sample_ids; "train" or "test" per sample
   registry: FeatureRegistry
 ```
 
@@ -76,6 +77,6 @@ FeatureMatrix
 
 ## References
 
-- `docs/llds/preprocessing.md` — upstream producer of `CleanSnpDataset`
-- `docs/llds/model-training.md` — downstream consumer of `FeatureMatrix`
-- `docs/llds/prediction.md` — consumes `FeatureRegistry` for marker traceability
+- `docs/llds/02_preprocessing.md` — upstream producer of `CleanSnpDataset`
+- `docs/llds/04_model-training.md` — downstream consumer of `FeatureMatrix`
+- `docs/llds/05_prediction.md` — consumes `FeatureRegistry` for marker traceability

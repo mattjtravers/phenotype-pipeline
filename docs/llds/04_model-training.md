@@ -31,7 +31,7 @@ K-fold cross-validation with **k=5** (configurable). Each fold:
 
 Final reported metrics are the mean and standard deviation across all folds.
 
-The final production model is then retrained on **all samples** using the mean `n_estimators` from early stopping across folds.
+The final production model is then retrained on **all training-split samples** using the mean `n_estimators` from early stopping across folds.
 
 ## Evaluation
 
@@ -55,6 +55,25 @@ AggregateMetrics
 ```
 
 The confusion matrix and F1-scores are the primary evaluation artefacts for the Business Analyst and Data Scientist personas.
+
+## Final Test-Set Evaluation
+
+After the final model is retrained on all training-split samples, it is evaluated once on the held-out test split (20% of data, defined in PREP-PROC-001). This is the definitive evaluation reported to the Business Analyst and Data Scientist personas.
+
+Test-set metrics added to the `EvaluationReport`:
+
+```
+EvaluationReport
+  ...
+  test_set: TestSetMetrics
+
+TestSetMetrics
+  f1_per_class: dict[str, float]
+  f1_macro: float
+  confusion_matrix: list[list[int]]
+```
+
+The test split is used exactly once — after all training and CV decisions are finalised — to prevent optimistic bias from repeated test-set evaluation.
 
 ## Model Artifact
 
@@ -90,6 +109,6 @@ This bundle is the sole input to the prediction component. No other pipeline sta
 
 ## References
 
-- `docs/llds/feature-engineering.md` — upstream producer of `FeatureMatrix`
-- `docs/llds/prediction.md` — downstream consumer of model artifact
-- `docs/llds/deployment.md` — S3 paths for artifact storage
+- `docs/llds/03_feature-engineering.md` — upstream producer of `FeatureMatrix`
+- `docs/llds/05_prediction.md` — downstream consumer of model artifact
+- `docs/llds/06_deployment.md` — S3 paths for artifact storage

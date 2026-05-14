@@ -49,6 +49,7 @@ CleanSnpDataset
   variants: list[CleanVariant]
   metadata: SampleMetadata
   imputation_medians: dict[str, float]  # variant_id → median used
+  split: Literal["train", "test"]       # assigned subset for each sample
 
 CleanVariant
   variant_id: str   # "{chrom}_{pos}_{ref}_{alt}"
@@ -72,11 +73,12 @@ Dosage encoding (0/1/2 = homozygous ref / het / homozygous alt) is applied durin
 ### Resolved
 1. ✅ Median imputation chosen for robustness and simplicity
 2. ✅ Pydantic selected as sole schema enforcement tool
+3. ✅ `imputation_medians` persisted in the model artifact bundle (see `04_model-training.md`) for inference-time reuse without re-fitting
 
 ### Deferred
-1. Whether to persist `imputation_medians` alongside the model artifact for inference-time reuse — defer to prediction LLD
+_(none)_
 
 ## References
 
-- `docs/llds/data-ingestion.md` — upstream producer of `RawSnpDataset`
-- `docs/llds/feature-engineering.md` — downstream consumer of `CleanSnpDataset`
+- `docs/llds/01_data-ingestion.md` — upstream producer of `RawSnpDataset`
+- `docs/llds/03_feature-engineering.md` — downstream consumer of `CleanSnpDataset`

@@ -16,7 +16,7 @@ All downstream stages treat this component as a black box: they receive a `RawSn
 The [1000 Genomes Project](https://www.internationalgenome.org/) provides phased SNP data in VCF format, hosted on a public S3 bucket (`s3://1000genomes`). The pipeline targets bi-allelic SNPs only; structural variants and indels are out of scope.
 
 Relevant S3 paths:
-- Variant calls: `s3://1000genomes/release/20130502/`
+- Variant calls: `s3://1000genomes/release/20130502/ALL.chr{N}.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz` — one file per chromosome; the target chromosome(s) are configurable, defaulting to chromosome 15 (OCA2/HERC2 region for eye color prediction)
 - Sample metadata (population, sex, phenotype labels): `s3://1000genomes/technical/working/20130606_sample_info/`
 
 Expected data volume after MAF and missingness filtering: **10K–50K variants × 2,504 samples (~50–250 MB VCF)**.
@@ -25,7 +25,7 @@ Expected data volume after MAF and missingness filtering: **10K–50K variants �
 
 The ETL step is a standalone script (`pipeline/ingest_etl.py`). It:
 
-1. Streams the source VCF from `s3://1000genomes/...` 
+1. Streams the source VCF(s) from `s3://1000genomes/...` for the configured target chromosome(s) (default: chromosome 15)
 2. Filters to bi-allelic SNPs only
 3. Writes the filtered VCF to `s3://{bucket}/data/raw/1000genomes.vcf.gz`
 4. Copies the sample metadata TSV to `s3://{bucket}/data/raw/sample_info.tsv`
@@ -70,5 +70,5 @@ The ingestion component does **not** validate genotype values or impute missing 
 ## References
 
 - [1000 Genomes S3 bucket](https://registry.opendata.aws/1000-genomes/)
-- `docs/llds/preprocessing.md` — downstream consumer, defines `RawSnpDataset`
-- `docs/llds/deployment.md` — IAM policy for S3 access; `PHENO_S3_BUCKET` env var
+- `docs/llds/02_preprocessing.md` — downstream consumer, defines `RawSnpDataset`
+- `docs/llds/06_deployment.md` — IAM policy for S3 access; `PHENO_S3_BUCKET` env var

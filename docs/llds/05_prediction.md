@@ -8,15 +8,15 @@ The prediction component is the component most directly serving the Business Ana
 
 ## Inference Pipeline
 
-1. Load model artifact bundle from S3 (or local path for dev)
-2. Accept raw SNP input for new samples (same VCF format as training data)
+1. Load model artifact bundle from S3
+2. Accept raw SNP input for new samples (VCF format)
 3. Apply preprocessing using stored `imputation_medians` (no re-fitting)
 4. Apply feature selection using stored `feature_registry` (select same variants, same column order)
 5. Run `model.predict_proba()` to get class probabilities
 6. Derive predicted label and confidence score from probabilities
-7. Compute marker contributions via XGBoost feature importances
+7. Compute per-sample SHAP marker contributions via `predict(X, pred_contribs=True)`
 8. Assemble and validate `PredictionResult` via Pydantic
-9. Persist result to S3 and return to caller
+9. Return result to caller
 
 ## Confidence Score
 
@@ -52,11 +52,13 @@ MarkerContribution
 PredictionResult
   sample_id: str
   predicted_phenotype: str
-  confidence_score: float          # in [0.0, 1.0]
-  class_probabilities: dict[str, float]   # all classes
+  confidence_score: float                  # in [0.0, 1.0]
+  class_probabilities: dict[str, float]    # all classes
   top_markers: list[MarkerContribution]
-  model_artifact_version: str      # S3 key of artifact bundle used
+  model_artifact_version: str              # S3 key of artifact bundle used
 ```
+
+Inference results are returned to the caller only — they are not persisted to S3.
 
 ## Decisions & Alternatives
 
@@ -77,7 +79,7 @@ PredictionResult
 
 ## References
 
-- `docs/llds/model-training.md` — produces the model artifact bundle
-- `docs/llds/feature-engineering.md` — defines `FeatureRegistry`
-- `docs/llds/deployment.md` — S3 paths for artifact and result storage
-- `docs/llds/ui.md` — primary consumer of `PredictionResult`
+- `docs/llds/04_model-training.md` — produces the model artifact bundle
+- `docs/llds/03_feature-engineering.md` — defines `FeatureRegistry`
+- `docs/llds/06_deployment.md` — S3 paths for artifact and result storage
+- `docs/llds/07_ui.md` — primary consumer of `PredictionResult`

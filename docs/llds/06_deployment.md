@@ -17,8 +17,7 @@ All pipeline data lives under a single S3 bucket (name configurable via environm
 ```
 s3://{bucket}/
   data/
-    raw/          ← downloaded 1000 Genomes VCF files
-    processed/    ← CleanSnpDataset snapshots (optional cache)
+    raw/          ← downloaded 1000 Genomes VCF files and sample metadata
   models/
     {run_id}/
       model.json
@@ -26,9 +25,6 @@ s3://{bucket}/
       imputation_medians.json
       evaluation_report.json
       label_encoder.json
-  predictions/
-    {run_id}/
-      {sample_id}.json   ← PredictionResult per sample
   logs/
     training/
     inference/
@@ -70,7 +66,6 @@ Two roles:
 
 **Lambda Execution Role**
 - `s3:GetObject` on `s3://{bucket}/models/*`
-- `s3:PutObject` on `s3://{bucket}/predictions/*`
 - `logs:CreateLogGroup`, `logs:PutLogEvents`
 
 ## Decisions & Alternatives
@@ -94,6 +89,6 @@ Two roles:
 
 ## References
 
-- `docs/llds/data-ingestion.md` — S3 read patterns
-- `docs/llds/model-training.md` — artifact bundle written to S3
-- `docs/llds/prediction.md` — artifact bundle read from S3, results written to S3
+- `docs/llds/01_data-ingestion.md` — S3 read patterns
+- `docs/llds/04_model-training.md` — artifact bundle written to S3
+- `docs/llds/05_prediction.md` — artifact bundle read from S3, results written to S3

@@ -25,7 +25,7 @@ Three personas collaborate on this pipeline:
 
 ## Goals
 
-- Predict human phenotypes from SNP data with calibrated confidence scores
+- Predict human phenotypes from SNP data with per-prediction confidence scores
 - Trace every prediction to the contributing genomic markers
 - Enforce data schemas and validation at every pipeline stage via Pydantic
 - Demonstrate a single "Spec-to-Production" LID lifecycle that replaces compartmentalized ML development
@@ -55,7 +55,7 @@ Three personas collaborate on this pipeline:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces feature importances for marker traceability; portable for local dev (this project is primarily an SDD/LID demo — AWS is deployment target, not dev dependency) |
+| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces per-sample SHAP values for marker traceability; custom SageMaker container gives full control over training logic and artifact format |
 | Missing data | Median imputation | Simple, robust baseline for genotype missingness |
 | Validation strategy | K-fold cross-validation | Prevents overfitting on the relatively small 1000 Genomes cohort |
 | Schema enforcement | Pydantic | Catches malformed data at every pipeline boundary |
