@@ -35,7 +35,6 @@ Three personas collaborate on this pipeline:
 - Real-time / low-latency inference (batch pipeline only)
 - Support for omics data types beyond SNPs (e.g., RNA-seq, methylation) — deferred
 - Clinical diagnostic use (research and demonstration scope only)
-- SageMaker-native managed services as a dev dependency — AWS is the deployment target, not a local dev requirement
 - Production-hardened UI (Streamlit is a demo interface, not a production web app)
 
 ## System Design
@@ -55,7 +54,7 @@ Three personas collaborate on this pipeline:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces per-sample SHAP values for marker traceability; custom SageMaker container gives full control over training logic and artifact format |
+| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces per-sample SHAP values for marker traceability; custom SageMaker container gives full control over training logic and artifact format. Training (SageMaker) and inference (Lambda) are cloud-only in production; module-level logic (preprocessing transforms, feature filters, prediction code paths) is unit-testable locally with `moto` mocks for S3/SageMaker/Lambda. |
 | Missing data | Median imputation | Simple, robust baseline for genotype missingness |
 | Validation strategy | K-fold cross-validation | Prevents overfitting on the relatively small 1000 Genomes cohort |
 | Schema enforcement | Pydantic | Catches malformed data at every pipeline boundary |

@@ -18,6 +18,7 @@
 - [ ] **DEPLOY-BE-008**: The Lambda function shall be allocated 3008 MB memory and a 60-second timeout.
 - [ ] **DEPLOY-BE-009**: The Lambda function shall cache the model artifact bundle in `/tmp` after the first load, and reuse the cached bundle on subsequent warm invocations within the same container lifecycle.
 - [ ] **DEPLOY-BE-010**: The Lambda function shall accept invocation via API Gateway (REST) and S3 event trigger (batch mode).
+- [ ] **DEPLOY-BE-013**: The Lambda function shall expose a `GET /labels` API Gateway route that returns the deployed model's phenotype label strings (sourced from the cached artifact's `label_encoder.json`) as a JSON body of shape `{"labels": [...]}`.
 
 ## IAM
 

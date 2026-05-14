@@ -3,7 +3,7 @@
 ## Artifact Loading
 
 - [ ] **PRED-PROC-001**: The system shall load the model artifact bundle (as defined in TRAIN-DATA-001) from S3 before running inference.
-- [ ] **PRED-PROC-002**: The system shall record the S3 key of the artifact bundle used in every `PredictionResult`, for traceability.
+- [ ] **PRED-PROC-002**: The system shall record the S3 bundle prefix of the artifact used in every `PredictionResult` under `model_artifact_version`, in the form `models/{run_id}/` (e.g. `models/20240115-a3f2c1/`).
 
 ## Input Validation
 
@@ -13,6 +13,7 @@
 
 - [ ] **PRED-PROC-003**: At inference time, the system shall impute missing genotype values using the `imputation_medians` from the loaded artifact bundle, without refitting on the input sample.
 - [ ] **PRED-PROC-004**: At inference time, the system shall select and order features using the `FeatureRegistry` from the loaded artifact bundle, without refitting marker selection. Variants present in the registry but absent from the input VCF shall be imputed to their stored training median.
+- [ ] **PRED-PROC-013**: At inference time, variants present in the input VCF but absent from the loaded `FeatureRegistry` shall be silently dropped before the feature vector is assembled — the model has no weight for them and they cannot affect the prediction.
 
 ## Prediction Output
 

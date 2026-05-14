@@ -17,12 +17,13 @@ Dosage encoding (0/1/2) is applied during preprocessing. This component's encodi
 
 The full 1000 Genomes SNP space is large (~80M variants). A marker selection step reduces this to a computationally tractable subset before training.
 
+Missingness filtering is **not** a feature-engineering responsibility — it is owned by preprocessing (see `02_preprocessing.md`), because it must run against raw, pre-imputation genotype state which is no longer visible at this stage. Feature engineering operates on the already-cleaned `CleanSnpDataset` and applies only filters whose inputs are available post-imputation.
+
 Selection strategy (in order of application):
 
 1. **MAF filter** — drop variants with minor allele frequency < 0.01 (rare variants with insufficient signal)
-2. **Missingness filter** — drop variants with > 10% missing rate before imputation (high-missingness variants are unreliable even after imputation)
-3. **Variance filter** — drop near-zero-variance variants after dosage encoding
-4. **Phenotype-specific filter** — optionally, top-N variants by univariate association score (chi-squared for categorical phenotypes). N is a configurable parameter; default 10,000.
+2. **Variance filter** — drop near-zero-variance variants after dosage encoding
+3. **Phenotype-specific filter** — optionally, top-N variants by univariate association score (chi-squared for categorical phenotypes). N is a configurable parameter; default 10,000.
 
 All filter thresholds are configurable via pipeline parameters, not hard-coded.
 
@@ -62,7 +63,7 @@ FeatureMatrix
 | Decision | Chosen | Alternatives Considered | Rationale |
 |---|---|---|---|
 | Encoding | Dosage (0/1/2) | One-hot, principal components | XGBoost handles integer ordinal inputs natively; one-hot triples feature count; PCA loses variant identity needed for traceability |
-| Marker selection | MAF + missingness + variance + optional association filter | LD pruning, GWAS-informed selection | Simple filters are transparent and reproducible; LD pruning adds complexity with marginal benefit for XGBoost |
+| Marker selection | MAF + variance + optional association filter (missingness owned by preprocessing) | LD pruning, GWAS-informed selection | Simple filters are transparent and reproducible; LD pruning adds complexity with marginal benefit for XGBoost. Missingness filter moved to preprocessing so it can see raw pre-imputation state. |
 | Threshold configuration | Pipeline parameters | Hard-coded constants | Allows experimentation without code changes |
 | Feature registry format | Pydantic + JSON | CSV lookup table | Consistent with project-wide schema approach; JSON serializes cleanly alongside model artifact |
 

@@ -1,0 +1,38 @@
+[project]
+name = "phenotype-pipeline"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "xgboost>=2.0",
+    "pydantic>=2.0",
+    "boto3>=1.34",
+    "scikit-learn>=1.4",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "streamlit>=1.32",
+    "requests>=2.31",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "moto[s3,sagemaker]>=5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phenotype_pipeline"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires a running Streamlit app (deselect with -m 'not integration')"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

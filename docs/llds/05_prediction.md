@@ -10,13 +10,19 @@ The prediction component is the component most directly serving the Business Ana
 
 1. Load model artifact bundle from S3
 2. Accept raw SNP input — VCF must contain exactly one sample; reject multi-sample VCFs
-3. Apply preprocessing using stored `imputation_medians` (no re-fitting); variants present in the registry but absent from the input VCF are imputed to their training median
+3. Apply preprocessing using stored `imputation_medians` (no re-fitting):
+   - Variants present in the registry but absent from the input VCF are imputed to their training median
+   - Variants present in the input VCF but absent from the registry are silently dropped — they cannot influence the prediction because the model has no weight for them
 4. Apply feature selection using stored `feature_registry` (select same variants, same column order)
 5. Run `model.predict_proba()` to get class probabilities
 6. Derive predicted label and confidence score from probabilities
 7. Compute per-sample SHAP marker contributions via `predict(X, pred_contribs=True)`
 8. Assemble and validate `PredictionResult` via Pydantic
 9. Return result to caller
+
+## Artifact Version Identity
+
+The `model_artifact_version` field in `PredictionResult` is the **S3 bundle prefix** for the loaded artifact — the key under which all bundle files (`model.json`, `feature_registry.json`, etc.) reside. Format: `models/{run_id}/` (with the trailing slash), e.g. `models/20240115-a3f2c1/`. Not the full S3 URI (no `s3://` prefix); not the `run_id` alone.
 
 ## Confidence Score
 

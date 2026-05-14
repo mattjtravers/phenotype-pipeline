@@ -8,11 +8,23 @@ Pydantic validation runs at the entry point of this component, not in data inges
 
 ## Train/Test Split
 
-The train/test split is owned by this component and applied at the entry point, before any statistics are fit. This prevents leakage from the test set into imputation medians (and into the feature engineering association filter downstream).
+The train/test split is owned by this component and applied at the entry point, before any statistics are fit. This prevents leakage from the test set into imputation medians, missingness filtering, or downstream feature engineering.
 
 Split ratio: **80% train / 20% test**, stratified by phenotype class. The split is seeded for reproducibility (`random_state` configurable via pipeline parameter).
 
-The `CleanSnpDataset` output carries a `split` field on each sample (`"train"` or `"test"`). Downstream components (feature engineering, model training) are responsible for respecting this split — they must fit only on samples marked `"train"`.
+A single `CleanSnpDataset` is emitted with a per-sample `sample_splits` dict mapping each `sample_id` to `"train"` or `"test"`. Downstream components (feature engineering, model training) are responsible for respecting this mapping — they must fit only on samples marked `"train"`.
+
+## Pipeline order
+
+Operations within preprocessing run in this order:
+
+1. **Train/test split** — assign every sample to "train" or "test"
+2. **Missingness filter** — drop variants whose missing rate in the training split exceeds the threshold (default 10%, configurable)
+3. **Imputation median fit** — compute per-variant medians on remaining variants using training-split samples only
+4. **Imputation apply** — fill missing genotype values with the stored medians
+5. **Dosage encoding** — map 0|0→0, 0|1/1|0→1, 1|1→2
+
+Missingness filtering lives in preprocessing (not feature engineering) because the raw, pre-imputation genotype state is only visible here — feature engineering receives an already-imputed dataset and would have no way to recover the original missing rates.
 
 ## Imputation Strategy
 
@@ -48,8 +60,8 @@ CleanSnpDataset
   samples: list[str]
   variants: list[CleanVariant]
   metadata: SampleMetadata
-  imputation_medians: dict[str, float]  # variant_id → median used
-  split: Literal["train", "test"]       # assigned subset for each sample
+  imputation_medians: dict[str, float]              # variant_id → training-split median
+  sample_splits: dict[str, Literal["train","test"]] # sample_id → assigned subset
 
 CleanVariant
   variant_id: str   # "{chrom}_{pos}_{ref}_{alt}"
@@ -63,6 +75,7 @@ Dosage encoding (0/1/2 = homozygous ref / het / homozygous alt) is applied durin
 | Decision | Chosen | Alternatives Considered | Rationale |
 |---|---|---|---|
 | Imputation method | Per-variant median | Mean, mode, KNN imputation | Median is robust to rare variants with skewed allele frequencies; simpler than KNN; mode would bias toward reference allele |
+| Missingness filter location | Preprocessing | Feature engineering | Pre-imputation missing rates are only observable here; placing the filter in feature engineering would require leaking raw genotype state across the segment boundary |
 | Split ownership | Preprocessing (first component to fit statistics) | Feature engineering, model training | Splitting here is the earliest safe point; ensures no downstream component accidentally fits on test data |
 | Imputation scope | Training split only | All data together | Prevents leakage of test-split information into imputation statistics |
 | Dosage encoding location | Preprocessing | Feature engineering | Dosage encoding is a data normalization step (0/1/2), not a feature design choice; belongs with cleaning |

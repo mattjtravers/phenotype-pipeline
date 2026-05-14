@@ -55,6 +55,15 @@ The prediction component runs as a Lambda function:
 
 The pipeline trains exactly one model. The Lambda handler loads the model artifact from the S3 path identified by the `MODEL_RUN_ID` environment variable, set once at deploy time. The artifact is cached in `/tmp` on cold start and reused for warm invocations. No model selection logic is needed.
 
+### API routes
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/predict` | Runs inference on a single-sample VCF; returns a `PredictionResult` JSON body |
+| `GET`  | `/labels`  | Returns the deployed model's phenotype label list as JSON `{"labels": [...]}` |
+
+The `/labels` endpoint reads `label_encoder.json` from the cached artifact (or loads the artifact if cold). It exists so the Streamlit UI can populate its phenotype dropdown from the deployed model without hardcoding labels in the UI image. The response is the sorted list of label strings (the integer keys are an internal detail of training and are not exposed).
+
 ## IAM Policies
 
 Two roles:
