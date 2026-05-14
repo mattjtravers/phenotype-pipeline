@@ -2,9 +2,9 @@
 
 ## Marker Selection Filters
 
-- [ ] **FEAT-PROC-001**: The system shall drop variants with minor allele frequency below 0.01 (configurable), computed on training-split samples only.
-- [ ] **FEAT-PROC-002**: The system shall drop variants with a missingness rate above 10% (configurable) in the raw genotype data before imputation, computed on training-split samples only.
-- [ ] **FEAT-PROC-003**: The system shall drop near-zero-variance variants after dosage encoding, computed on training-split samples only.
+- [ ] **FEAT-PROC-001**: The system shall drop variant columns (not samples) with minor allele frequency below 0.01 (configurable), where MAF is computed on training-split samples only.
+- [ ] **FEAT-PROC-002**: The system shall drop variant columns (not samples) with a missingness rate above 10% (configurable) in the raw genotype data before imputation, where missingness is computed on training-split samples only.
+- [ ] **FEAT-PROC-003**: The system shall drop near-zero-variance variant columns (not samples) after dosage encoding, where variance is computed on training-split samples only.
 - [ ] **FEAT-PROC-004**: Where the association filter is enabled (configurable pipeline parameter), the system shall retain the top-N variants by univariate chi-squared association score with the phenotype label, computed on training-split samples only. Default N = 10,000.
 
 ## Feature Registry

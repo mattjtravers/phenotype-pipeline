@@ -53,7 +53,7 @@ The prediction component runs as a Lambda function:
 - **Timeout**: 60 seconds
 - **Environment variables**: `PHENO_S3_BUCKET`, `MODEL_RUN_ID`
 
-The Lambda handler downloads the model artifact from S3 on cold start and caches it in `/tmp` for warm invocations.
+The pipeline trains exactly one model. The Lambda handler loads the model artifact from the S3 path identified by the `MODEL_RUN_ID` environment variable, set once at deploy time. The artifact is cached in `/tmp` on cold start and reused for warm invocations. No model selection logic is needed.
 
 ## IAM Policies
 
@@ -82,6 +82,7 @@ Two roles:
 ### Resolved
 1. ✅ SageMaker Training Job for training, Lambda for inference — one process per component, no dual-mode switching
 2. ✅ Lambda chosen over SageMaker endpoint for inference (serverless, cost-effective for low-frequency demo use)
+3. ✅ Single training run; model version is fixed at deploy time via `MODEL_RUN_ID` — no model selection UI or versioning logic needed
 
 ### Deferred
 1. API Gateway authentication (API key vs Cognito) — out of scope for SDD demo

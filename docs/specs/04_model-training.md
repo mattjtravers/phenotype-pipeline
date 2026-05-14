@@ -19,7 +19,7 @@
 
 ## Final Test-Set Evaluation
 
-- [ ] **TRAIN-PROC-007**: After the final model is retrained on all training-split samples, the system shall evaluate it exactly once on the held-out test split (as defined in PREP-PROC-001), producing per-class F1-score, macro F1-score, and a confusion matrix.
+- [ ] **TRAIN-PROC-007**: After cross-validation is complete and the final model has been retrained on all training-split samples (TRAIN-PROC-004), the system shall evaluate it exactly once on the held-out test split (as defined in PREP-PROC-001), producing per-class F1-score, macro F1-score, and a confusion matrix. The test split shall not be used at any earlier point in the training sequence.
 - [ ] **TRAIN-PROC-008**: The test-set evaluation results shall be included in the `EvaluationReport` under a `test_set` section, separate from the cross-validation fold results.
 
 ## Model Artifact

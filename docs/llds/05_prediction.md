@@ -9,8 +9,8 @@ The prediction component is the component most directly serving the Business Ana
 ## Inference Pipeline
 
 1. Load model artifact bundle from S3
-2. Accept raw SNP input for new samples (VCF format)
-3. Apply preprocessing using stored `imputation_medians` (no re-fitting)
+2. Accept raw SNP input — VCF must contain exactly one sample; reject multi-sample VCFs
+3. Apply preprocessing using stored `imputation_medians` (no re-fitting); variants present in the registry but absent from the input VCF are imputed to their training median
 4. Apply feature selection using stored `feature_registry` (select same variants, same column order)
 5. Run `model.predict_proba()` to get class probabilities
 6. Derive predicted label and confidence score from probabilities

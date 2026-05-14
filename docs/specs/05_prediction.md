@@ -5,15 +5,19 @@
 - [ ] **PRED-PROC-001**: The system shall load the model artifact bundle (as defined in TRAIN-DATA-001) from S3 before running inference.
 - [ ] **PRED-PROC-002**: The system shall record the S3 key of the artifact bundle used in every `PredictionResult`, for traceability.
 
+## Input Validation
+
+- [ ] **PRED-PROC-012**: If the input VCF contains more than one sample, then the system shall raise a structured error and shall not produce a prediction.
+
 ## Inference Preprocessing
 
 - [ ] **PRED-PROC-003**: At inference time, the system shall impute missing genotype values using the `imputation_medians` from the loaded artifact bundle, without refitting on the input sample.
-- [ ] **PRED-PROC-004**: At inference time, the system shall select and order features using the `FeatureRegistry` from the loaded artifact bundle, without refitting marker selection.
+- [ ] **PRED-PROC-004**: At inference time, the system shall select and order features using the `FeatureRegistry` from the loaded artifact bundle, without refitting marker selection. Variants present in the registry but absent from the input VCF shall be imputed to their stored training median.
 
 ## Prediction Output
 
 - [ ] **PRED-PROC-005**: The system shall produce a predicted phenotype label for each input sample by applying the loaded XGBoost model to the preprocessed feature vector.
-- [ ] **PRED-PROC-006**: The system shall produce a confidence score for each prediction, defined as the maximum class probability from `predict_proba()`, in the range [0.0, 1.0].
+- [ ] **PRED-PROC-006**: The system shall produce a confidence score for each prediction, defined as the probability assigned by `predict_proba()` to the predicted class (i.e. the maximum class probability), in the range [0.0, 1.0].
 - [ ] **PRED-DATA-001**: The system shall include the full class probability distribution (all classes, mapped to human-readable labels via `label_encoder.json`) in the `PredictionResult`.
 
 ## Marker Traceability
