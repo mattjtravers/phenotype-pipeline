@@ -195,9 +195,10 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
 # These tests require a fully implemented ui.py and are skipped until Phase 6 is complete.
 
 
+# @spec UI-UI-001
 @pytest.mark.integration
 def test_ui_has_file_upload_widget():
-    """UI-UI-001: Streamlit app renders a file upload widget accepting .vcf files."""
+    """Streamlit app renders a file upload widget accepting .vcf files."""
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
@@ -205,9 +206,10 @@ def test_ui_has_file_upload_widget():
     assert len(at.file_uploader) > 0
 
 
+# @spec UI-UI-002
 @pytest.mark.integration
 def test_ui_has_phenotype_dropdown():
-    """UI-UI-002: Streamlit app renders a phenotype selection dropdown."""
+    """Streamlit app renders a phenotype selection dropdown."""
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
@@ -215,9 +217,10 @@ def test_ui_has_phenotype_dropdown():
     assert len(at.selectbox) > 0
 
 
+# @spec UI-UI-009
 @pytest.mark.integration
 def test_ui_shows_loading_indicator_during_request():
-    """UI-UI-009: A loading indicator appears while a prediction is in progress."""
+    """A loading indicator appears while a prediction is in progress."""
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
@@ -234,9 +237,10 @@ def test_ui_shows_loading_indicator_during_request():
     assert len(at.button) > 0
 
 
+# @spec UI-UI-011
 @pytest.mark.integration
 def test_ui_displays_prediction_results():
-    """UI-UI-011: After a successful prediction, label, confidence, and top markers are shown."""
+    """After a successful prediction, label, confidence, and top markers are shown."""
     from streamlit.testing.v1 import AppTest
 
     from phenotype_pipeline.models import PredictionResult
@@ -263,9 +267,10 @@ def test_ui_displays_prediction_results():
     assert "blue" in output_text.lower() or "82" in output_text
 
 
+# @spec UI-UI-012, UI-UI-014
 @pytest.mark.integration
 def test_ui_shows_marker_table():
-    """UI-UI-012: Top contributing markers are shown in a ranked table."""
+    """Top contributing markers are shown in a ranked table and a horizontal bar chart."""
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
     at.run()
@@ -273,9 +278,10 @@ def test_ui_shows_marker_table():
     assert len(at.dataframe) > 0
 
 
+# @spec UI-UI-013
 @pytest.mark.integration
 def test_ui_provides_json_download_button():
-    """UI-UI-013: A download button exports the full PredictionResult as JSON."""
+    """A download button exports the full PredictionResult as JSON."""
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
     at.run()
