@@ -2,7 +2,7 @@
 
 ## Problem
 
-Predicting observable human phenotypes (e.g., eye color) from raw SNP (single nucleotide polymorphism) data is currently a siloed process — business analysts, data scientists, and software engineers each maintain separate artifacts with no enforced traceability between intent and implementation. This project addresses both the ML prediction task and the process problem by using Linked-Intent Development (LID) to unify intent from requirements through production code in a single "Spec-to-Production" lifecycle.
+ Building machine learning pipelines can be a siloed process — business analysts, data scientists, and software engineers each maintain separate artifacts with no enforced traceability between intent and implementation. This project, predicting observable human phenotypes (e.g., eye color) from raw SNP (single nucleotide polymorphism) data, addresses both the ML prediction task and the process problem by using [Linked-Intent Development (LID)](https://github.com/jszmajda/lid) to unify intent from requirements through production code in a single "Spec-to-Production" lifecycle.
 
 ## Approach
 
@@ -73,4 +73,5 @@ Three personas collaborate on this pipeline:
 ## References
 
 - [1000 Genomes Project](https://www.internationalgenome.org/)
+- [Linked-Intent Development](https://github.com/jszmajda/lid)
 - [README.md](../README.md) — persona constraints and vision statement
