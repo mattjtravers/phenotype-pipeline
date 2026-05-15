@@ -1,6 +1,8 @@
 """Preprocessing: stratified split, missingness filter, imputation, dosage encoding."""
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from phenotype_pipeline.models import CleanSnpDataset, CleanVariant, RawSnpDataset
@@ -12,6 +14,8 @@ class PreprocessingError(Exception):
 
 _DOSAGE = {"0|0": 0, "0|1": 1, "1|0": 1, "1|1": 2}
 
+logger = logging.getLogger(__name__)
+
 
 # @spec PREP-PROC-001, PREP-PROC-002, PREP-PROC-003, PREP-PROC-004, PREP-PROC-005,
 # @spec PREP-PROC-006, PREP-PROC-007, PREP-PROC-008, PREP-PROC-009,
@@ -22,11 +26,35 @@ def preprocess(
     test_size: float = 0.2,
     missingness_threshold: float = 0.10,
 ) -> CleanSnpDataset:
-    """Splits, filters, imputes, encodes, and validates the raw dataset."""
+    """Splits, filters, imputes, encodes, and validates the raw dataset.
+
+    Args:
+        dataset: Raw SNP dataset produced by the ingestion step.
+        random_state: RNG seed for reproducible stratified splits. Defaults to 42.
+        test_size: Fraction of samples to assign to the held-out test split.
+            Defaults to 0.2.
+        missingness_threshold: Maximum allowable fraction of training-split samples
+            with a missing genotype for a variant to be retained. Defaults to 0.10.
+
+    Returns:
+        CleanSnpDataset containing dosage-encoded variants (training medians
+        imputed), per-variant imputation medians, and train/test split assignments.
+
+    Raises:
+        PreprocessingError: If ``dataset`` is not a :class:`RawSnpDataset`.
+    """
     if not isinstance(dataset, RawSnpDataset):
+        logger.error(
+            "preprocess type_error [expected=RawSnpDataset got=%s]",
+            type(dataset).__name__,
+        )
         raise PreprocessingError(
             f"preprocess() expected RawSnpDataset, got {type(dataset).__name__}"
         )
+    logger.info(
+        "preprocess start [n_samples=%d n_variants=%d test_size=%.2f missingness_threshold=%.2f]",
+        len(dataset.samples), len(dataset.variants), test_size, missingness_threshold,
+    )
 
     sample_splits = _stratified_split(
         samples=dataset.samples,
@@ -48,13 +76,18 @@ def preprocess(
         train_samples=train_samples,
     )
 
-    return CleanSnpDataset(
+    result = CleanSnpDataset(
         samples=dataset.samples,
         variants=clean_variants,
         metadata=dataset.metadata,
         imputation_medians=imputation_medians,
         sample_splits=sample_splits,
     )
+    logger.info(
+        "preprocess complete [n_samples=%d n_kept_variants=%d]",
+        len(result.samples), len(result.variants),
+    )
+    return result
 
 
 def _stratified_split(
@@ -135,6 +168,7 @@ def _apply_missingness_filter(
     train_samples: list[str],
     threshold: float,
 ):
+    """Return variants whose training-split missingness rate is at or below threshold."""
     if not train_samples:
         return list(variants)
     n_train = len(train_samples)
@@ -152,6 +186,7 @@ def _impute_and_encode(
     all_samples: list[str],
     train_samples: list[str],
 ) -> tuple[list[CleanVariant], dict[str, float]]:
+    """Compute training-split medians, impute missing values, and encode all samples to dosage ints."""
     clean_variants: list[CleanVariant] = []
     imputation_medians: dict[str, float] = {}
 

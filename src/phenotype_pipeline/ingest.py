@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import gzip
 import io
+import logging
 from typing import IO
 
 import boto3
@@ -31,6 +32,8 @@ _VCF_REQUIRED_COLS = (
 )
 _MISSING_GENOTYPES = frozenset({".", "./.", ".|."})
 
+logger = logging.getLogger(__name__)
+
 
 # @spec INGEST-PROC-002
 def is_biallelic_snp(vcf_line: str) -> bool:
@@ -52,8 +55,18 @@ def run_etl(
     dest_bucket: str,
     chromosomes: list[int],
 ) -> None:
-    """One-time ETL: streams and filters VCF from source S3 to project S3."""
+    """One-time ETL: streams and filters VCF from source S3 to project S3.
+
+    Args:
+        source_bucket: Public 1000 Genomes S3 bucket to read from.
+        dest_bucket: Project S3 bucket to write filtered VCF and metadata.
+        chromosomes: Chromosome numbers to include in the filtered VCF.
+    """
     s3 = boto3.client("s3")
+    logger.info(
+        "run_etl start [source_bucket=%s dest_bucket=%s chromosomes=%s]",
+        source_bucket, dest_bucket, chromosomes,
+    )
 
     out_lines: list[str] = []
     header_written = False
@@ -86,6 +99,7 @@ def run_etl(
         Key=_METADATA_DEST_KEY,
         Body=meta["Body"].read(),
     )
+    logger.info("run_etl complete [dest_bucket=%s]", dest_bucket)
 
 
 # @spec INGEST-PROC-004, INGEST-PROC-005, INGEST-PROC-006, INGEST-PROC-007, INGEST-DATA-001
@@ -93,7 +107,20 @@ def load_raw_dataset(
     bucket: str,
     local_data_dir: str | None = None,
 ) -> RawSnpDataset:
-    """Streams the project VCF from S3 (or local dir) and emits a RawSnpDataset."""
+    """Stream the project VCF and metadata from S3 and return a RawSnpDataset.
+
+    Args:
+        bucket: Project S3 bucket containing the VCF and metadata files.
+        local_data_dir: Reserved for future local-path support; currently unused.
+
+    Returns:
+        RawSnpDataset containing the parsed sample list, variant records, and
+        sample metadata.
+
+    Raises:
+        IngestError: If either the VCF or metadata file cannot be fetched from
+            S3, or if the VCF fails to parse.
+    """
     s3 = boto3.client("s3")
 
     try:
@@ -102,6 +129,10 @@ def load_raw_dataset(
     except IngestError:
         raise
     except Exception as e:
+        logger.error(
+            "load_raw_dataset vcf_fetch failed [bucket=%s key=%s]: %s",
+            bucket, _VCF_DEST_KEY, e,
+        )
         raise IngestError(
             f"Failed to fetch VCF from s3://{bucket}/{_VCF_DEST_KEY}: {e}"
         ) from e
@@ -114,6 +145,10 @@ def load_raw_dataset(
     except IngestError:
         raise
     except Exception as e:
+        logger.error(
+            "load_raw_dataset metadata_fetch failed [bucket=%s key=%s]: %s",
+            bucket, _METADATA_DEST_KEY, e,
+        )
         raise IngestError(
             f"Failed to fetch metadata from s3://{bucket}/{_METADATA_DEST_KEY}: {e}"
         ) from e
@@ -123,6 +158,7 @@ def load_raw_dataset(
 
 
 def _read_vcf_body(body: IO[bytes]) -> str:
+    """Read, decompress if gzip, and decode a VCF S3 body to a UTF-8 string."""
     raw = body.read()
     if isinstance(raw, str):
         return raw
@@ -132,6 +168,7 @@ def _read_vcf_body(body: IO[bytes]) -> str:
 
 
 def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
+    """Parse VCF text into an ordered sample list and a list of RawVariant objects."""
     samples: list[str] = []
     variants: list[RawVariant] = []
     seen_columns = False
@@ -190,6 +227,7 @@ def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
 
 
 def _parse_metadata(raw: bytes) -> SampleMetadata:
+    """Parse TSV metadata bytes into a SampleMetadata object."""
     population: dict[str, str] = {}
     phenotype_labels: dict[str, str] = {}
 
@@ -219,6 +257,7 @@ def _parse_metadata(raw: bytes) -> SampleMetadata:
 
 
 def _pick_col(fields: list[str], candidates: set[str]) -> str | None:
+    """Return the first field name whose lowercase form is in candidates, or None."""
     for field in fields:
         if field.lower() in candidates:
             return field

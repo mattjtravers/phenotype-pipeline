@@ -4,6 +4,8 @@ Applies MAF, variance, and optional chi-squared association filters.
 """
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from phenotype_pipeline.models import (
@@ -12,6 +14,8 @@ from phenotype_pipeline.models import (
     FeatureMatrix,
     FeatureRegistry,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # @spec FEAT-PROC-001, FEAT-PROC-003, FEAT-PROC-004, FEAT-PROC-005,
@@ -22,12 +26,32 @@ def build_feature_matrix(
     association_filter: bool = False,
     top_n: int = 10_000,
 ) -> FeatureMatrix:
-    """Applies marker selection filters (MAF, variance, optional association) and
-    assembles the model-ready FeatureMatrix.
+    """Apply marker selection filters and assemble the model-ready FeatureMatrix.
 
-    All filter statistics here are computed on training-split samples only.
-    The resulting FeatureRegistry is applied unchanged to the test split.
+    MAF, variance, and optional chi-squared association filters are computed on
+    training-split samples only; the resulting FeatureRegistry is applied unchanged
+    to the test split.
+
+    Args:
+        dataset: Preprocessed SNP dataset with dosage-encoded genotypes and
+            train/test split assignments.
+        maf_threshold: Minimum minor allele frequency on the training split for
+            a variant to pass the MAF filter. Defaults to 0.01.
+        association_filter: If True, apply a chi-squared association filter after
+            MAF/variance filtering and retain at most ``top_n`` features.
+            Defaults to False.
+        top_n: Maximum number of features to retain when ``association_filter``
+            is True. Defaults to 10,000.
+
+    Returns:
+        FeatureMatrix with model-ready arrays X and y, sample identifiers,
+        split assignments, and a FeatureRegistry mapping column indices to
+        genomic coordinates.
     """
+    logger.info(
+        "build_feature_matrix start [n_samples=%d n_variants=%d maf_threshold=%.4f association_filter=%s]",
+        len(dataset.samples), len(dataset.variants), maf_threshold, association_filter,
+    )
     samples = list(dataset.samples)
     splits = [dataset.sample_splits[s] for s in samples]
     train_indices = [i for i, sp in enumerate(splits) if sp == "train"]
@@ -95,23 +119,31 @@ def build_feature_matrix(
             )
         )
 
-    return FeatureMatrix(
+    result = FeatureMatrix(
         X=X_selected,
         y=y_full,
         sample_ids=samples,
         splits=splits,
         registry=FeatureRegistry(features=feature_entries),
     )
+    logger.info(
+        "build_feature_matrix complete [n_features=%d n_samples=%d]",
+        len(feature_entries), len(samples),
+    )
+    return result
 
 
 def _build_label_encoder(labels: dict[str, str], samples: list[str]) -> dict[str, int]:
+    """Map sorted unique phenotype label strings to integer class indices."""
     unique = sorted({labels[s] for s in samples if s in labels})
     return {label: idx for idx, label in enumerate(unique)}
 
 
 def _parse_variant_id(vid: str) -> tuple[str, int, str, str]:
+    """Split a variant_id string into (chrom, pos, ref, alt) components."""
     parts = vid.rsplit("_", 3)
     if len(parts) != 4:
+        logger.error("_parse_variant_id malformed [variant_id=%r]", vid)
         raise ValueError(f"Cannot parse variant_id {vid!r}")
     chrom, pos_str, ref, alt = parts
     return chrom, int(pos_str), ref, alt
@@ -123,6 +155,7 @@ def _select_top_n_by_chi2(
     kept_indices: list[int],
     top_n: int,
 ) -> list[int]:
+    """Select the top-n feature indices by chi-squared association score."""
     from sklearn.feature_selection import chi2
 
     n_features = X_train.shape[1]
