@@ -64,6 +64,18 @@ Three personas collaborate on this pipeline:
 | UI framework | Streamlit | Minimal code; locally runnable; suitable for demo use by Business Analyst persona without a full web app |
 | Development process | LID (EARS → Tests → Code) | Collapses BA/DS/Eng silos into one traceable artifact chain |
 
+## Cross-Cutting Code Standards
+
+Three engineering standards apply uniformly across every code-generating segment. They exist to make the codebase reviewable by humans and operable in production. The HLD is their canonical declaration; conformance is enforced at code-review time rather than via a dedicated arrow segment.
+
+| Code Standard | Rule | Rationale |
+|---|---|---|
+| Function and class documentation | **Google-style docstrings** on every public function and class, declaring `Args`, `Returns`, `Raises` (and `Yields` for generators). Private helpers may use a one-line summary. | The codebase is reviewed by humans (interview, code-review, audit contexts); structured docstrings are the lowest-friction way to make intent legible without reading the implementation. Tooling (Sphinx, mkdocs, IDE hovers) all consume this format. |
+| Inline comments | Reserved for **non-obvious "why"**: hidden constraints, workarounds, ordering invariants, subtle correctness conditions. No "what" comments — identifier names already carry that. | Comments rot; identifiers don't (the linter catches stale names). Only commit a comment if removing it would leave a future reader confused. |
+| Production observability | The pipeline emits **structured logs to stdout/stderr** suitable for ingestion by Splunk / CloudWatch Logs Insights / equivalent aggregators. Every error path emits a `logger.error` line carrying enough context (operation, identifiers, exception type, request/run id) for a developer to triage from log output alone, without re-running the failing code. | Production code is debugged from logs, not from interactive sessions. If an operator can't determine *which operation failed, on what input, with what cause* from a single log line, the log line is insufficient. This is a non-negotiable, demo or otherwise. |
+
+The two standards together mean: *any function a human reads should explain what it does to a human, and any failure a human investigates should explain itself in the log stream.*
+
 ## Success Metrics
 
 - F1-score on held-out test set reported per phenotype class
