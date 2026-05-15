@@ -4,7 +4,7 @@
 
 This component trains an XGBoost classifier on the feature matrix produced by feature engineering, evaluates it via k-fold cross-validation, and persists the trained model artifact. The artifact includes the model weights, the feature registry, and the imputation medians — everything needed for inference without re-running the training pipeline.
 
-Training runs exclusively as a **SageMaker Training Job**. The training script (`pipeline/train.py`) is packaged in a Docker container and executed on a managed SageMaker instance. Training is a batch operation; it does not need to be fast at inference time — it needs to be reproducible and evaluable.
+Training runs exclusively as a **SageMaker Training Job**. The training script (`pipeline/train.py`) is packaged in a Docker container and executed on a managed SageMaker instance — by default `ml.m5.2xlarge`, overridable per-run via the launcher's `--instance-type` flag (see `docs/llds/06_deployment.md § Training Launch`). Training is a batch operation; it does not need to be fast at inference time — it needs to be reproducible and evaluable.
 
 ## Training Protocol
 

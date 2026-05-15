@@ -1,0 +1,30 @@
+# SAM CLI configuration for the phenotype-pipeline inference stack.
+# @spec DEPLOY-BE-019 — region pinned to us-east-1; do not rely on AWS_DEFAULT_REGION.
+
+version = 0.1
+
+[default.global.parameters]
+stack_name = "phenotype-inference"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_image_repos = true
+fail_on_empty_changeset = false
+# Operator must pass --parameter-overrides ModelRunId=<run_id> PhenoS3Bucket=<bucket>
+# (typically piped from launch_training.py stdout).
+
+[default.validate.parameters]
+region = "us-east-1"
+lint = true
+
+[default.local_invoke.parameters]
+region = "us-east-1"
+
+[default.local_start_api.parameters]
+region = "us-east-1"

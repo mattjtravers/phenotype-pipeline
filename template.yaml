@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Phenotype Pipeline inference Lambda fronted by an API Gateway HTTP API.
+  Trained model artifacts are read from s3://{PhenoS3Bucket}/models/{ModelRunId}/.
+  See docs/llds/06_deployment.md for the canonical design.
+
+# @spec DEPLOY-BE-014, DEPLOY-BE-015
+
+Parameters:
+  ModelRunId:
+    Type: String
+    Description: run_id of the trained model artifact to bind to this deployment.
+    AllowedPattern: '^[0-9]{8}-[a-f0-9]{6}$'
+    ConstraintDescription: Must match the YYYYMMDD-xxxxxx run_id format (DEPLOY-BE-002).
+
+  PhenoS3Bucket:
+    Type: String
+    Description: S3 bucket containing data/raw/ inputs and models/ artifact bundles.
+    AllowedPattern: '^[a-z0-9][a-z0-9\-]{1,61}[a-z0-9]$'
+
+Resources:
+
+  # @spec DEPLOY-BE-007, DEPLOY-BE-008, DEPLOY-BE-010, DEPLOY-BE-012,
+  #       DEPLOY-BE-013, DEPLOY-BE-015
+  InferenceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub phenotype-inference-${ModelRunId}
+      PackageType: Image
+      MemorySize: 3008
+      Timeout: 60
+      Environment:
+        Variables:
+          MODEL_RUN_ID: !Ref ModelRunId
+          PHENO_S3_BUCKET: !Ref PhenoS3Bucket
+      Policies:
+        - Statement:
+            - Sid: ReadModelArtifacts
+              Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub arn:aws:s3:::${PhenoS3Bucket}/models/*
+      Events:
+        PredictRoute:
+          Type: HttpApi
+          Properties:
+            Method: POST
+            Path: /predict
+            PayloadFormatVersion: '2.0'
+        LabelsRoute:
+          Type: HttpApi
+          Properties:
+            Method: GET
+            Path: /labels
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      DockerTag: !Ref ModelRunId
+      DockerContext: .
+      Dockerfile: Dockerfile
+
+  # @spec DEPLOY-BE-020
+  InferenceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/phenotype-inference-${ModelRunId}
+      RetentionInDays: 14
+
+Outputs:
+  ApiEndpoint:
+    Description: HTTP API endpoint URL (POST /predict, GET /labels).
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  FunctionName:
+    Description: Inference Lambda function name.
+    Value: !Ref InferenceFunction

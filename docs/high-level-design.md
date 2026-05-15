@@ -54,11 +54,13 @@ Three personas collaborate on this pipeline:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces per-sample SHAP values for marker traceability; custom SageMaker container gives full control over training logic and artifact format. Training (SageMaker) and inference (Lambda) are cloud-only in production; module-level logic (preprocessing transforms, feature filters, prediction code paths) is unit-testable locally with `moto` mocks for S3/SageMaker/Lambda. |
+| ML algorithm | Open-source XGBoost | Handles sparse SNP features well; produces per-sample SHAP values for marker traceability; custom SageMaker container gives full control over training logic and artifact format. |
 | Missing data | Median imputation | Simple, robust baseline for genotype missingness |
 | Validation strategy | K-fold cross-validation | Prevents overfitting on the relatively small 1000 Genomes cohort |
 | Schema enforcement | Pydantic | Catches malformed data at every pipeline boundary |
-| Infrastructure | AWS S3 + Lambda/SageMaker | Scalable serverless execution; standard for genomics workloads |
+| Workload split | Local data pull/prep → S3 → SageMaker training → S3 → Lambda inference | Deliberate use of each AWS service where it is the industry-standard fit; data acquisition stays local, training and inference are cloud-only |
+| Inference IaC | AWS SAM (`template.yaml` + `samconfig.toml`) | Showcases SAM; clean fit for packaging Lambda + API Gateway as a single deployable stack |
+| Training launch | SageMaker Python SDK (`sagemaker.estimator.Estimator`) from a local launcher script | Industry-standard programmatic interface for SageMaker training; treats training as the imperative one-shot job it is, rather than forcing it into declarative CloudFormation |
 | UI framework | Streamlit | Minimal code; locally runnable; suitable for demo use by Business Analyst persona without a full web app |
 | Development process | LID (EARS → Tests → Code) | Collapses BA/DS/Eng silos into one traceable artifact chain |
 

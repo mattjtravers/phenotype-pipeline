@@ -3,7 +3,7 @@
 ## Execution Environment
 
 - [ ] **TRAIN-BE-001**: Model training shall run exclusively as a SageMaker Training Job using a custom Docker container containing the full pipeline stack.
-- [ ] **TRAIN-BE-002**: The SageMaker Training Job shall use an `ml.m5.2xlarge` instance (configurable via deployment parameter).
+- [ ] **TRAIN-BE-002**: The SageMaker Training Job shall use `ml.m5.2xlarge` as its default instance type, overridable via the launcher's `--instance-type` CLI flag (see `DEPLOY-BE-016`).
 
 ## Training Protocol
 
