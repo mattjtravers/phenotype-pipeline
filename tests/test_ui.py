@@ -227,9 +227,9 @@ def test_ui_shows_loading_indicator_during_request():
     at.run()
     # Upload a file and submit; spinner or progress should appear
     at.file_uploader[0].upload(
-        name="sample.vcf",
+        filename="sample.vcf",
         content=b"##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1\n",
-        mime="text/plain",
+        mime_type="text/plain",
     )
     with patch("phenotype_pipeline.ui.dispatch_prediction", side_effect=lambda **_: None):
         at.button[0].click().run()
@@ -254,16 +254,22 @@ def test_ui_displays_prediction_results():
         model_artifact_version="models/run1/",
     )
     at = AppTest.from_file("src/phenotype_pipeline/ui.py")
-    with patch("phenotype_pipeline.ui.dispatch_prediction", return_value=mock_result):
+    with patch("phenotype_pipeline.ui.dispatch_prediction", return_value=mock_result), \
+         patch(
+             "phenotype_pipeline.ui.fetch_phenotype_labels",
+             return_value=["blue", "brown", "green"],
+         ):
         at.run()
         at.file_uploader[0].upload(
-            name="sample.vcf",
+            filename="sample.vcf",
             content=b"##fileformat=VCFv4.1\n#CHROM\t...\n",
-            mime="text/plain",
+            mime_type="text/plain",
         )
         at.button[0].click().run()
 
-    output_text = " ".join(str(e) for e in at.markdown + at.text)
+    output_text = " ".join(
+        str(getattr(e, "value", e)) for e in list(at.markdown) + list(at.text)
+    )
     assert "blue" in output_text.lower() or "82" in output_text
 
 
