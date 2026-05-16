@@ -1,9 +1,7 @@
 {
    "name": "Phenotype Pipeline",
-   "image": "mcr.microsoft.com/devcontainers/python:3.12",
-   "features": {
-    "ghcr.io/devcontainers/features/node:1": {}
-   },
+   "image": "mcr.microsoft.com/devcontainers/universal:2",
+   "features": {},
    "customizations": {
        "vscode": {
            "extensions": [
@@ -13,7 +11,7 @@
                "anthropic.claude-code"
            ],
            "settings": {
-               "python.defaultInterpreterPath": "/usr/local/bin/python",
+               "python.defaultInterpreterPath": "/usr/local/pyenv/shims/python",
                "python.terminal.activateEnvInSelectedTerminal": true,
                "python-envs.alwaysUseUv": true,
                "[python]": {
