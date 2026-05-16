@@ -41,8 +41,5 @@
         claude plugin install ai@pydantic-skills && \\
         claude plugin marketplace add jszmajda/lid && \\
         claude plugin install linked-intent-dev@jszmajdo-lid && \\
-        claude plugin install arrow-maintenance@jszmajda-lid",
-   "remoteEnv": {
-     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
-   }
+        claude plugin install arrow-maintenance@jszmajda-lid"
 }
