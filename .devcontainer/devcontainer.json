@@ -1,45 +1,44 @@
 {
    "name": "Phenotype Pipeline",
-   "image": "mcr.microsoft.com/devcontainers/universal:5",
-   "features": {},
+   "features": {
+      "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+      "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+   },
    "customizations": {
-       "vscode": {
-           "extensions": [
-               "ms-python.python",
-               "ms-python.debugpy",
-               "charliermarsh.ruff",
-               "anthropic.claude-code"
-           ],
-           "settings": {
-               "python.defaultInterpreterPath": "/usr/local/pyenv/shims/python",
-               "python.terminal.activateEnvInSelectedTerminal": true,
-               "python-envs.alwaysUseUv": true,
-               "[python]": {
-                   "editor.formatOnSave": true,
-                   "editor.defaultFormatter": "charliermarsh.ruff",
-                   "editor.codeActionsOnSave": {
-                       "source.organizeImports": "always",
-                       "source.fixAll": "always"
-                   }
-               },
-              "claudeCode.preferredLocation": "sidebar",
-              "claude.dangerouslySkipPermissions": true,
-              "claude.initialPermissionMode": "bypassPermissions",
-              "terminal.integrated.profiles.linux": {
-                "bash": {
+      "vscode": {
+         "extensions": [
+            "ms-python.python",
+            "ms-python.debugpy",
+            "charliermarsh.ruff",
+            "anthropic.claude-code"
+         ],
+         "settings": {
+            "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+            "python.terminal.activateEnvInSelectedTerminal": true,
+            "[python]": {
+               "editor.formatOnSave": true,
+               "editor.defaultFormatter": "charliermarsh.ruff",
+               "editor.codeActionsOnSave": {
+                  "source.organizeImports": "always",
+                  "source.fixAll": "always"
+               }
+            },
+            "claudeCode.preferredLocation": "sidebar",
+            "claude.dangerouslySkipPermissions": true,
+            "claude.initialPermissionMode": "bypassPermissions",
+            "terminal.integrated.profiles.linux": {
+               "bash": {
                   "path": "bash",
                   "icon": "terminal-bash"
-                }
-              }
-           }
-       }
+               }
+            }
+         }
+      }
    },
-   "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && \\
-        uv tool install specify-cli --from git+https://github.com/github/spec-kit.git && \\
-        curl -fsSL https://claude.ai/install.sh | bash && \\
-        claude plugin marketplace add pydantic/skills && \\
-        claude plugin install ai@pydantic-skills && \\
-        claude plugin marketplace add jszmajda/lid && \\
-        claude plugin install linked-intent-dev@jszmajdo-lid && \\
-        claude plugin install arrow-maintenance@jszmajda-lid"
+   "postCreateCommand": [
+      "uv venv && uv sync",
+      "claude plugin marketplace add jszmajda/lid",
+      "claude plugin install linked-intent-dev@jszmajdo-lid",
+      "claude plugin install arrow-maintenance@jszmajda-lid"
+   ]
 }
