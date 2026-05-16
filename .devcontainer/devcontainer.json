@@ -37,6 +37,6 @@
    },
    "postCreateCommand": "uv venv && uv sync && \\
       claude plugin marketplace add jszmajda/lid && \\
-      claude plugin install linked-intent-dev@jszmajdo-lid && \\
+      claude plugin install linked-intent-dev@jszmajda-lid && \\
       claude plugin install arrow-maintenance@jszmajda-lid"
 }
