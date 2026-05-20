@@ -1,6 +1,7 @@
 """Tests for data ingestion — INGEST-* specs."""
 from __future__ import annotations
 
+import gzip
 import io
 from unittest.mock import MagicMock, call, patch
 
@@ -25,6 +26,11 @@ def _vcf_bytes(*extra_rows: str) -> bytes:
     return (_VCF_HEADER + "".join(extra_rows)).encode()
 
 
+def _vcf_gz_bytes(*extra_rows: str) -> bytes:
+    """Gzip-compressed VCF — matches the format run_etl reads from the source bucket."""
+    return gzip.compress((_VCF_HEADER + "".join(extra_rows)).encode())
+
+
 # ── ETL tests ─────────────────────────────────────────────────────────────────
 
 
@@ -33,7 +39,7 @@ def test_etl_copies_vcf_to_project_s3():
     """ETL writes the filtered VCF to s3://{dest_bucket}/data/raw/1000genomes.vcf.gz."""
     with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
-        mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_bytes(_BIALLELIC_ROW))}
+        mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_gz_bytes(_BIALLELIC_ROW))}
         mock_s3.get_object.side_effect = None
 
         run_etl(source_bucket="1000genomes", dest_bucket="my-bucket", chromosomes=[15])
@@ -63,7 +69,7 @@ def test_etl_copies_sample_metadata_tsv():
     """ETL copies the sample metadata TSV to s3://{dest_bucket}/data/raw/sample_info.tsv."""
     with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
-        mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_bytes(_BIALLELIC_ROW))}
+        mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_gz_bytes(_BIALLELIC_ROW))}
 
         run_etl(source_bucket="1000genomes", dest_bucket="my-bucket", chromosomes=[15])
 

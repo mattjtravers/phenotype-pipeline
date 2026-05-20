@@ -16,8 +16,8 @@ All downstream stages treat this component as a black box: they receive a `RawSn
 The [1000 Genomes Project](https://www.internationalgenome.org/) provides phased SNP data in VCF format, hosted on a public S3 bucket (`s3://1000genomes`). The pipeline targets bi-allelic SNPs only; structural variants and indels are out of scope.
 
 Relevant S3 paths:
-- Variant calls: `s3://1000genomes/release/20130502/ALL.chr{N}.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz` — one file per chromosome; the target chromosome(s) are configurable, defaulting to chromosome 15 (OCA2/HERC2 region for eye color prediction)
-- Sample metadata (population, sex, phenotype labels): `s3://1000genomes/technical/working/20130606_sample_info/`
+- Variant calls: `s3://1000genomes/release/20130502/ALL.chr{N}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz` — one file per chromosome; the target chromosome(s) are configurable, defaulting to chromosome 15 (OCA2/HERC2 region for eye color prediction)
+- Sample metadata (population, sex, phenotype labels): `s3://1000genomes/technical/working/20130606_sample_info/20130606_sample_info.txt`
 
 Expected data volume after MAF and missingness filtering: **10K–50K variants × 2,504 samples (~50–250 MB VCF)**.
 

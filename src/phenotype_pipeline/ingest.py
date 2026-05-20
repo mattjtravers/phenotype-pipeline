@@ -1,4 +1,5 @@
 """Data ingestion: one-time ETL from public 1000 Genomes S3 + runtime VCF loader."""
+
 from __future__ import annotations
 
 import csv
@@ -8,6 +9,7 @@ import logging
 from typing import IO
 
 import boto3
+import botocore
 
 from phenotype_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
 
@@ -62,39 +64,54 @@ def run_etl(
         dest_bucket: Project S3 bucket to write filtered VCF and metadata.
         chromosomes: Chromosome numbers to include in the filtered VCF.
     """
-    s3 = boto3.client("s3")
-    logger.info(
-        "run_etl start [source_bucket=%s dest_bucket=%s chromosomes=%s]",
-        source_bucket, dest_bucket, chromosomes,
+    s3_dest = boto3.client("s3")
+
+    # Source client forces anonymous access for public open-data buckets
+    s3_source = boto3.client(
+        "s3", config=botocore.config.Config(signature_version=botocore.UNSIGNED)
     )
 
-    out_lines: list[str] = []
+    logger.info(
+        "run_etl start [source_bucket=%s dest_bucket=%s chromosomes=%s]",
+        source_bucket,
+        dest_bucket,
+        chromosomes,
+    )
+
+    out_buf = io.BytesIO()
     header_written = False
-    for chrom in chromosomes:
-        source_key = (
-            f"release/20130502/ALL.chr{chrom}."
-            "phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
-        )
-        obj = s3.get_object(Bucket=source_bucket, Key=source_key)
-        text = _read_vcf_body(obj["Body"])
-        for line in text.splitlines(keepends=True):
-            if line.startswith("##"):
-                if not header_written:
-                    out_lines.append(line)
-                continue
-            if line.startswith("#CHROM"):
-                if not header_written:
-                    out_lines.append(line)
-                    header_written = True
-                continue
-            if is_biallelic_snp(line.rstrip("\n")):
-                out_lines.append(line)
+    with gzip.GzipFile(fileobj=out_buf, mode="wb") as gz_out:
+        for chrom in chromosomes:
+            source_key = (
+                f"release/20130502/ALL.chr{chrom}."
+                "phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz"
+            )
+            logger.info("run_etl downloading [chrom=%s]", chrom)
+            obj = s3_source.get_object(Bucket=source_bucket, Key=source_key)
+            # Read compressed bytes then stream-decompress line-by-line to avoid
+            # loading several GB of decompressed text into RAM at once.
+            with gzip.GzipFile(fileobj=io.BytesIO(obj["Body"].read())) as gz_in:
+                for raw_line in gz_in:
+                    line = raw_line.decode("utf-8")
+                    if line.startswith("##"):
+                        if not header_written:
+                            gz_out.write(raw_line)
+                        continue
+                    if line.startswith("#CHROM"):
+                        if not header_written:
+                            gz_out.write(raw_line)
+                            header_written = True
+                        continue
+                    if is_biallelic_snp(line.rstrip("\n")):
+                        gz_out.write(raw_line)
 
-    filtered_bytes = gzip.compress("".join(out_lines).encode("utf-8"))
-    s3.put_object(Bucket=dest_bucket, Key=_VCF_DEST_KEY, Body=filtered_bytes)
+    out_buf.seek(0)
+    logger.info("run_etl uploading VCF [dest_bucket=%s key=%s]", dest_bucket, _VCF_DEST_KEY)
+    s3_dest.upload_fileobj(out_buf, dest_bucket, _VCF_DEST_KEY)
 
-    meta = s3.get_object(Bucket=source_bucket, Key=_SOURCE_METADATA_KEY)
-    s3.put_object(
+    logger.info("run_etl fetching metadata [key=%s]", _SOURCE_METADATA_KEY)
+    meta = s3_source.get_object(Bucket=source_bucket, Key=_SOURCE_METADATA_KEY)
+    s3_dest.put_object(
         Bucket=dest_bucket,
         Key=_METADATA_DEST_KEY,
         Body=meta["Body"].read(),
@@ -131,11 +148,11 @@ def load_raw_dataset(
     except Exception as e:
         logger.error(
             "load_raw_dataset vcf_fetch failed [bucket=%s key=%s]: %s",
-            bucket, _VCF_DEST_KEY, e,
+            bucket,
+            _VCF_DEST_KEY,
+            e,
         )
-        raise IngestError(
-            f"Failed to fetch VCF from s3://{bucket}/{_VCF_DEST_KEY}: {e}"
-        ) from e
+        raise IngestError(f"Failed to fetch VCF from s3://{bucket}/{_VCF_DEST_KEY}: {e}") from e
 
     samples, variants = _parse_vcf(vcf_text)
 
@@ -147,7 +164,9 @@ def load_raw_dataset(
     except Exception as e:
         logger.error(
             "load_raw_dataset metadata_fetch failed [bucket=%s key=%s]: %s",
-            bucket, _METADATA_DEST_KEY, e,
+            bucket,
+            _METADATA_DEST_KEY,
+            e,
         )
         raise IngestError(
             f"Failed to fetch metadata from s3://{bucket}/{_METADATA_DEST_KEY}: {e}"
@@ -185,21 +204,17 @@ def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
                 or tuple(cols[: len(_VCF_REQUIRED_COLS)]) != _VCF_REQUIRED_COLS
             ):
                 raise IngestError(
-                    f"Malformed VCF header at line {lineno}: "
-                    f"expected columns {_VCF_REQUIRED_COLS}"
+                    f"Malformed VCF header at line {lineno}: expected columns {_VCF_REQUIRED_COLS}"
                 )
-            samples = cols[len(_VCF_REQUIRED_COLS):]
+            samples = cols[len(_VCF_REQUIRED_COLS) :]
             seen_columns = True
             continue
         if not seen_columns:
-            raise IngestError(
-                f"Malformed VCF: data line at {lineno} before #CHROM header"
-            )
+            raise IngestError(f"Malformed VCF: data line at {lineno} before #CHROM header")
         cols = line.split("\t")
         if len(cols) < 9:
             raise IngestError(
-                f"Malformed VCF data at line {lineno}: "
-                f"expected at least 9 columns, got {len(cols)}"
+                f"Malformed VCF data at line {lineno}: expected at least 9 columns, got {len(cols)}"
             )
         chrom, pos_str, _id, ref, alt = cols[:5]
         try:
