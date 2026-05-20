@@ -54,5 +54,17 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --no-cli-
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
 
 echo ""
+echo "ACTION REQUIRED — add this statement to your developer IAM policy so bin/02_ingest.sh can write to the bucket:"
+printf '{
+    "Sid": "ProjectBucketDataAccess",
+    "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+    "Resource": [
+        "arn:aws:s3:::%s",
+        "arn:aws:s3:::%s/*"
+    ]
+}\n' "$PHENO_S3_BUCKET" "$PHENO_S3_BUCKET"
+
+echo ""
 echo "Setup complete. Run the following before 03_train.sh:"
 echo "  export PHENO_TRAINING_ROLE_ARN=${ROLE_ARN}"
