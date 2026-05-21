@@ -61,6 +61,41 @@ _GENERIC_ERROR = "Prediction request failed — please try again."
 _EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 _NONE_SAMPLE = "None — use uploaded file"
 
+_POPULATION_NAMES: dict[str, str] = {
+    "ACB": "African Caribbean in Barbados",
+    "ASW": "African Ancestry in SW USA",
+    "BEB": "Bengali in Bangladesh",
+    "CDX": "Chinese Dai in Xishuangbanna",
+    "CEU": "Northern Europeans from Utah",
+    "CHB": "Han Chinese in Beijing",
+    "CHS": "Southern Han Chinese",
+    "CLM": "Colombian in Medellín",
+    "ESN": "Esan in Nigeria",
+    "FIN": "Finnish in Finland",
+    "GBR": "British in England/Scotland",
+    "GIH": "Gujarati Indian in Houston",
+    "GWD": "Gambian in Western Division",
+    "IBS": "Iberian in Spain",
+    "ITU": "Indian Telugu in the UK",
+    "JPT": "Japanese in Tokyo",
+    "KHV": "Kinh in Ho Chi Minh City",
+    "LWK": "Luhya in Webuye, Kenya",
+    "MSL": "Mende in Sierra Leone",
+    "MXL": "Mexican Ancestry in LA",
+    "PEL": "Peruvian in Lima",
+    "PJL": "Punjabi in Lahore",
+    "PUR": "Puerto Rican in Puerto Rico",
+    "STU": "Sri Lankan Tamil in the UK",
+    "TSI": "Toscani in Italy",
+    "YRI": "Yoruba in Ibadan, Nigeria",
+}
+
+
+def _format_phenotype_option(code: str) -> str:
+    """Format a population code for display, e.g. 'ACB - African Caribbean in Barbados'."""
+    name = _POPULATION_NAMES.get(code)
+    return f"{code} - {name}" if name else code
+
 
 # ── Pure helpers (unit-tested) ─────────────────────────────────────────────────
 
@@ -265,7 +300,21 @@ def _render() -> None:
     # phenotype_pipeline.ui.* names take effect inside AppTest runs.
     from phenotype_pipeline import ui as _self
 
-    st.title("Phenotype Pipeline")
+    st.title("Genomic Ancestry Pipeline")
+    st.markdown(
+        """
+Upload a VCF file containing SNP (single nucleotide polymorphism) data and this app will
+predict the most likely ancestral population from the
+[1000 Genomes Project](https://www.internationalgenome.org/) cohorts — returning a
+confidence score and the top genomic markers that drove the result.
+
+The model is an **XGBoost** classifier trained on **AWS SageMaker**, with SHAP values
+computed per prediction for full marker traceability. Inference runs serverlessly on
+**AWS Lambda** via API Gateway, so predictions are returned in seconds with no
+infrastructure to manage.
+        """
+    )
+    st.divider()
 
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
     labels, labels_error = _try_fetch_labels(api_endpoint)
@@ -280,10 +329,15 @@ def _render() -> None:
     selected_sample_path: Path | None = None
     if sample_files:
         # UI-UI-018 / UI-UI-019: expander open by default; radio starts at None
+        if "sample_radio" not in st.session_state:
+            st.session_state["sample_radio"] = _NONE_SAMPLE
         with st.expander("Don't have a file? Try a sample", expanded=True):
             sample_options = [_NONE_SAMPLE] + [label for label, _ in sample_files]
             selected_label = st.radio(
-                "Select a sample", sample_options, index=0, label_visibility="collapsed"
+                "Select a sample",
+                sample_options,
+                key="sample_radio",
+                label_visibility="collapsed",
             )
             if selected_label != _NONE_SAMPLE:
                 selected_sample_path = next(
@@ -291,11 +345,13 @@ def _render() -> None:
                 )
 
     # UI-UI-002 / UI-UI-006: phenotype dropdown (disabled when labels missing)
-    phenotype = st.selectbox(
+    phenotype_options = [_format_phenotype_option(c) for c in labels] if labels else ["(unavailable)"]
+    phenotype_selection = st.selectbox(
         "Target phenotype",
-        options=labels or ["(unavailable)"],
+        options=phenotype_options,
         disabled=not labels,
     )
+    phenotype = phenotype_selection.split(" - ")[0] if labels else ""
 
     active_input_present = uploaded_file is not None or selected_sample_path is not None
     submitted = st.button("Run Prediction", disabled=not labels or not active_input_present)

@@ -1,4 +1,4 @@
-# High-Level Design: Phenotype Pipeline
+# High-Level Design: Genomic Ancestry Pipeline
 
 ## Problem
 

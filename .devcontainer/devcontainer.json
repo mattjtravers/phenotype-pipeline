@@ -1,5 +1,5 @@
 {
-   "name": "Phenotype Pipeline",
+   "name": "Genomic Ancestry Pipeline",
    "features": {
       "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
       "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},

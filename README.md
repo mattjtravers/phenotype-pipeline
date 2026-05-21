@@ -1,8 +1,8 @@
-# Phenotype Pipeline — Spec-Driven Genomic Machine Learning
+# Genomic Ancestry Pipeline — Spec-Driven Machine Learning
 
 ## Overview
 
-The Phenotype Pipeline is an automated machine learning workflow designed to predict observable human traits from raw single-nucleotide polymorphism (SNP) genomic data. It establishes an engineering pipeline that translates structured biological requirements into a reproducible model training and serverless inference architecture on AWS.
+The Genomic Ancestry Pipeline is an automated machine learning workflow that predicts ancestral population from raw single-nucleotide polymorphism (SNP) genomic data. It establishes an end-to-end pipeline that translates structured biological requirements into a reproducible model training and serverless inference architecture on AWS.
 
 ---
 
@@ -53,7 +53,7 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-[![Open Demo App](assets/open-demo-button.svg)](https://phenotype-pipeline.streamlit.app)
+<a href="https://genomic-ancestry-pipeline.streamlit.app" target="_blank"><img src="assets/open-demo-button.svg" alt="Open Demo App"/></a>
 
 Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
 
