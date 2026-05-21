@@ -62,6 +62,7 @@ Three personas collaborate on this pipeline:
 | Inference IaC | AWS SAM (`template.yaml` + `samconfig.toml`) | Showcases SAM; clean fit for packaging Lambda + API Gateway as a single deployable stack |
 | Training launch | SageMaker Python SDK (`sagemaker.estimator.Estimator`) from a local launcher script | Industry-standard programmatic interface for SageMaker training; treats training as the imperative one-shot job it is, rather than forcing it into declarative CloudFormation |
 | UI framework | Streamlit | Minimal code; locally runnable; suitable for demo use by Business Analyst persona without a full web app |
+| UI delivery | GitHub Codespaces (one-click) | Local clone + `streamlit run`, Streamlit Community Cloud, EC2 | Codespaces eliminates all local setup; demo users get a running app by clicking one button in the README; keeps the app in the known-good devcontainer environment with the endpoint already wired |
 | Development process | LID (EARS → Tests → Code) | Collapses BA/DS/Eng silos into one traceable artifact chain |
 
 ## Cross-Cutting Code Standards

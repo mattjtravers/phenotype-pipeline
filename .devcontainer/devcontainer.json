@@ -29,8 +29,19 @@
          }
       }
    },
+   "remoteEnv": {
+      "PHENO_API_ENDPOINT": "https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com"
+   },
+   "forwardPorts": [8501],
+   "portsAttributes": {
+      "8501": {
+         "label": "Streamlit UI",
+         "onAutoForward": "openBrowserOnce"
+      }
+   },
    "postCreateCommand": "uv venv && uv sync && \\
       claude plugin marketplace add jszmajda/lid && \\
       claude plugin install linked-intent-dev@jszmajda-lid && \\
-      claude plugin install arrow-maintenance@jszmajda-lid"
+      claude plugin install arrow-maintenance@jszmajda-lid",
+   "postStartCommand": "nohup uv run streamlit run src/phenotype_pipeline/ui.py > /tmp/streamlit.log 2>&1 &"
 }

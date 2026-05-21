@@ -11,10 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pathlib import Path
+
 from phenotype_pipeline.ui import (
     count_vcf_samples,
     dispatch_prediction,
     fetch_phenotype_labels,
+    load_sample_files,
+    sample_label_from_filename,
     validate_vcf_upload,
 )
 
@@ -191,6 +195,38 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
             )
 
 
+# ── Sample file helpers ────────────────────────────────────────────────────────
+
+
+# @spec UI-UI-018
+def test_sample_label_strips_prefix_and_extension():
+    """sample_label_from_filename converts 'sample_blue_eyes.vcf' → 'Blue eyes'."""
+    assert sample_label_from_filename("sample_blue_eyes.vcf") == "Blue eyes"
+
+
+def test_sample_label_multi_word():
+    """sample_label_from_filename handles filenames with multiple underscore-separated words."""
+    assert sample_label_from_filename("sample_dark_eyes.vcf") == "Dark eyes"
+
+
+# @spec UI-UI-016, UI-UI-017, UI-UI-018
+def test_load_sample_files_returns_labelled_paths(tmp_path, minimal_vcf_bytes):
+    """load_sample_files returns (label, path) pairs for .vcf files in the directory."""
+    (tmp_path / "sample_blue_eyes.vcf").write_bytes(minimal_vcf_bytes)
+    (tmp_path / "sample_brown_eyes.vcf").write_bytes(minimal_vcf_bytes)
+    result = load_sample_files(tmp_path)
+    labels = [label for label, _ in result]
+    assert "Blue eyes" in labels
+    assert "Brown eyes" in labels
+    assert all(isinstance(p, Path) for _, p in result)
+
+
+def test_load_sample_files_returns_empty_when_dir_missing(tmp_path):
+    """load_sample_files returns an empty list when the directory does not exist."""
+    result = load_sample_files(tmp_path / "nonexistent")
+    assert result == []
+
+
 # ── Streamlit widget tests (integration) ──────────────────────────────────────
 # These tests require a fully implemented ui.py and are skipped until Phase 6 is complete.
 
@@ -293,3 +329,183 @@ def test_ui_provides_json_download_button():
     at.run()
     download_buttons = [b for b in at.button if "download" in str(b).lower()]
     assert len(download_buttons) > 0
+
+
+# ── Sample input integration tests ────────────────────────────────────────────
+
+
+# @spec UI-UI-016
+@pytest.mark.integration
+def test_sample_expander_visible_when_examples_present(minimal_vcf_bytes, tmp_path):
+    """The 'Try a sample' expander is rendered when sample files are available."""
+    from streamlit.testing.v1 import AppTest
+
+    fake_vcf = tmp_path / "sample_blue_eyes.vcf"
+    fake_vcf.write_bytes(minimal_vcf_bytes)
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", fake_vcf)],
+    ):
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+
+    expander_labels = [str(e.label) for e in at.expander]
+    assert any("sample" in label.lower() for label in expander_labels)
+
+
+# @spec UI-UI-018
+@pytest.mark.integration
+def test_sample_radio_has_none_as_first_option(minimal_vcf_bytes, tmp_path):
+    """The sample radio group's first option is 'None — use uploaded file'."""
+    from streamlit.testing.v1 import AppTest
+
+    fake_vcf = tmp_path / "sample_blue_eyes.vcf"
+    fake_vcf.write_bytes(minimal_vcf_bytes)
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", fake_vcf)],
+    ):
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+
+    assert at.radio[0].options[0] == "None — use uploaded file"
+
+
+# @spec UI-UI-019
+@pytest.mark.integration
+def test_sample_radio_defaults_to_none(minimal_vcf_bytes, tmp_path):
+    """On page load the sample radio group has 'None — use uploaded file' selected."""
+    from streamlit.testing.v1 import AppTest
+
+    fake_vcf = tmp_path / "sample_blue_eyes.vcf"
+    fake_vcf.write_bytes(minimal_vcf_bytes)
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", fake_vcf)],
+    ):
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+
+    assert at.radio[0].value == "None — use uploaded file"
+
+
+# @spec UI-UI-020
+@pytest.mark.integration
+def test_sample_file_dispatched_when_no_upload(minimal_vcf_bytes, tmp_path):
+    """When a sample is selected and no file is uploaded, the sample bytes are dispatched."""
+    from streamlit.testing.v1 import AppTest
+
+    from phenotype_pipeline.models import PredictionResult
+
+    fake_vcf = tmp_path / "sample_blue_eyes.vcf"
+    fake_vcf.write_bytes(minimal_vcf_bytes)
+
+    mock_result = PredictionResult(
+        sample_id="HG_BLUE001",
+        predicted_phenotype="CEU",
+        confidence_score=0.75,
+        class_probabilities={"CEU": 0.75},
+        top_markers=[],
+        model_artifact_version="models/run1/",
+    )
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", fake_vcf)],
+    ), patch(
+        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        return_value=["CEU", "GBR"],
+    ), patch(
+        "phenotype_pipeline.ui.dispatch_prediction",
+        return_value=mock_result,
+    ) as mock_dispatch:
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+        at.radio[0].set_value("Blue eyes").run()
+        at.button[0].click().run()
+
+    mock_dispatch.assert_called_once()
+    assert mock_dispatch.call_args[1]["vcf_bytes"] == minimal_vcf_bytes
+
+
+# @spec UI-UI-021
+@pytest.mark.integration
+def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
+    """When both an upload and a sample are present, the uploaded file is dispatched."""
+    from streamlit.testing.v1 import AppTest
+
+    from phenotype_pipeline.models import PredictionResult
+
+    sample_vcf = tmp_path / "sample_blue_eyes.vcf"
+    sample_content = b"##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample_file\n"
+    sample_vcf.write_bytes(sample_content)
+
+    mock_result = PredictionResult(
+        sample_id="uploaded",
+        predicted_phenotype="GBR",
+        confidence_score=0.80,
+        class_probabilities={"GBR": 0.80},
+        top_markers=[],
+        model_artifact_version="models/run1/",
+    )
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", sample_vcf)],
+    ), patch(
+        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        return_value=["CEU", "GBR"],
+    ), patch(
+        "phenotype_pipeline.ui.dispatch_prediction",
+        return_value=mock_result,
+    ) as mock_dispatch:
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+        at.radio[0].set_value("Blue eyes").run()
+        at.file_uploader[0].upload(
+            filename="my_own.vcf",
+            content=minimal_vcf_bytes,
+            mime_type="text/plain",
+        )
+        at.button[0].click().run()
+
+    mock_dispatch.assert_called_once()
+    assert mock_dispatch.call_args[1]["vcf_bytes"] == minimal_vcf_bytes
+
+
+# Phase 4 resolution: upload validation error shown even when sample is also selected
+@pytest.mark.integration
+def test_upload_validation_error_shown_when_sample_also_selected(
+    multi_sample_vcf_bytes, minimal_vcf_bytes, tmp_path
+):
+    """A multi-sample uploaded file shows a validation error; the sample is not used."""
+    from streamlit.testing.v1 import AppTest
+
+    fake_vcf = tmp_path / "sample_blue_eyes.vcf"
+    fake_vcf.write_bytes(minimal_vcf_bytes)
+
+    with patch(
+        "phenotype_pipeline.ui.load_sample_files",
+        return_value=[("Blue eyes", fake_vcf)],
+    ), patch(
+        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        return_value=["CEU", "GBR"],
+    ), patch(
+        "phenotype_pipeline.ui.dispatch_prediction",
+    ) as mock_dispatch:
+        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at.run()
+        at.radio[0].set_value("Blue eyes").run()
+        at.file_uploader[0].upload(
+            filename="cohort.vcf",
+            content=multi_sample_vcf_bytes,
+            mime_type="text/plain",
+        )
+        at.button[0].click().run()
+
+    mock_dispatch.assert_not_called()
+    error_texts = [str(e.value) for e in at.error]
+    assert any("sample" in t.lower() or "multi" in t.lower() for t in error_texts)
