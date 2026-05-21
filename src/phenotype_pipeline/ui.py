@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 
 import requests
 import streamlit as st
@@ -42,7 +43,7 @@ _ERROR_MESSAGES = {
         "please try again in a moment."
     ),
     "INVALID_VCF": (
-        "The uploaded VCF could not be processed "
+        "The VCF file could not be processed "
         "(multi-sample file, malformed format, or no usable variants)."
     ),
     "INVALID_INPUT": "The request was rejected as malformed — please reload and try again.",
@@ -56,6 +57,9 @@ _ERROR_MESSAGES = {
     ),
 }
 _GENERIC_ERROR = "Prediction request failed — please try again."
+
+_EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
+_NONE_SAMPLE = "None — use uploaded file"
 
 
 # ── Pure helpers (unit-tested) ─────────────────────────────────────────────────
@@ -178,6 +182,42 @@ def dispatch_prediction(
     return PredictionResult(**response.json())
 
 
+# @spec UI-UI-018
+def sample_label_from_filename(filename: str) -> str:
+    """Convert a sample VCF filename to a human-readable radio label.
+
+    Strips the ``sample_`` prefix and ``.vcf`` extension, replaces underscores
+    with spaces, and title-cases the result.
+
+    Args:
+        filename: VCF filename, e.g. ``sample_blue_eyes.vcf``.
+
+    Returns:
+        Display label, e.g. ``"Blue eyes"``.
+    """
+    name = filename.removeprefix("sample_").removesuffix(".vcf")
+    return name.replace("_", " ").capitalize()
+
+
+# @spec UI-UI-016, UI-UI-017
+def load_sample_files(examples_dir: Path) -> list[tuple[str, Path]]:
+    """Return labelled sample VCF paths from ``examples_dir``.
+
+    Args:
+        examples_dir: Directory to scan for ``.vcf`` files.
+
+    Returns:
+        Sorted list of ``(label, path)`` pairs. Empty list when the directory
+        does not exist (UI-UI-017: expander hidden silently).
+    """
+    if not examples_dir.is_dir():
+        return []
+    return [
+        (sample_label_from_filename(p.name), p)
+        for p in sorted(examples_dir.glob("*.vcf"))
+    ]
+
+
 # ── Streamlit application ──────────────────────────────────────────────────────
 
 
@@ -212,7 +252,8 @@ def _map_error_response(payload: dict) -> str:
 
 
 # @spec UI-UI-001, UI-UI-002, UI-UI-006, UI-UI-009, UI-UI-011, UI-UI-012,
-#       UI-UI-013, UI-UI-014, UI-UI-015
+#       UI-UI-013, UI-UI-014, UI-UI-015, UI-UI-016, UI-UI-017, UI-UI-018,
+#       UI-UI-019, UI-UI-020, UI-UI-021, UI-UI-022
 def _render() -> None:
     """Render the Streamlit app.
 
@@ -220,6 +261,10 @@ def _render() -> None:
     side-effecting (Streamlit widgets are appended to the active script run)
     and returns nothing.
     """
+    # Route through the module reference so unittest.mock patches applied to
+    # phenotype_pipeline.ui.* names take effect inside AppTest runs.
+    from phenotype_pipeline import ui as _self
+
     st.title("Phenotype Pipeline")
 
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
@@ -230,6 +275,19 @@ def _render() -> None:
     # UI-UI-001: file upload widget restricted to .vcf
     uploaded_file = st.file_uploader("Upload SNP data", type=["vcf"])
 
+    # UI-UI-016 / UI-UI-017: sample expander (hidden when examples/ is absent)
+    sample_files = _self.load_sample_files(_EXAMPLES_DIR)
+    selected_sample_path: Path | None = None
+    if sample_files:
+        # UI-UI-018 / UI-UI-019: expander open by default; radio starts at None
+        with st.expander("Don't have a file? Try a sample", expanded=True):
+            sample_options = [_NONE_SAMPLE] + [label for label, _ in sample_files]
+            selected_label = st.radio("", sample_options, index=0)
+            if selected_label != _NONE_SAMPLE:
+                selected_sample_path = next(
+                    p for label, p in sample_files if label == selected_label
+                )
+
     # UI-UI-002 / UI-UI-006: phenotype dropdown (disabled when labels missing)
     phenotype = st.selectbox(
         "Target phenotype",
@@ -237,30 +295,30 @@ def _render() -> None:
         disabled=not labels,
     )
 
-    # UI-UI-006: disable submit only when labels endpoint failed (the dropdown is
-    # also disabled). File-presence is checked on click so the button is always
-    # responsive when the labels endpoint is healthy.
-    submit_disabled = not labels
-    submitted = st.button("Run Prediction", disabled=submit_disabled)
+    active_input_present = uploaded_file is not None or selected_sample_path is not None
+    submitted = st.button("Run Prediction", disabled=not labels or not active_input_present)
 
-    if submitted and uploaded_file is None:
-        st.error("Please upload a VCF file before submitting.")
-    elif submitted and uploaded_file is not None and labels:
-        file_bytes = uploaded_file.getvalue()
-        errors = validate_vcf_upload(
-            filename=uploaded_file.name,
-            file_bytes=file_bytes,
-            size_bytes=len(file_bytes),
-        )
-        if errors:
-            for err in errors:
-                st.error(err)
+    if submitted:
+        if uploaded_file is not None:
+            # Path 1a: uploaded file takes priority (UI-UI-021); validate first
+            file_bytes: bytes | None = uploaded_file.getvalue()
+            errors = validate_vcf_upload(
+                filename=uploaded_file.name,
+                file_bytes=file_bytes,
+                size_bytes=len(file_bytes),
+            )
+            if errors:
+                for err in errors:
+                    st.error(err)
+                file_bytes = None
         else:
+            # Path 1b: sample selected — bypass validation (UI-UI-022)
+            file_bytes = selected_sample_path.read_bytes()  # type: ignore[union-attr]
+
+        if file_bytes is not None:
             with st.spinner("Running prediction..."):
+                result: PredictionResult | None = None
                 try:
-                    # See _try_fetch_labels: route through the module so test
-                    # patches on phenotype_pipeline.ui.dispatch_prediction apply.
-                    from phenotype_pipeline import ui as _self
                     result = _self.dispatch_prediction(
                         vcf_bytes=file_bytes,
                         phenotype=phenotype,
@@ -273,11 +331,9 @@ def _render() -> None:
                     except ValueError:
                         response_payload = {}
                     st.error(_map_error_response(response_payload))
-                    result = None
                 except Exception as e:
                     logger.error("dispatch_prediction failed [error=%s]", e)
                     st.error(_GENERIC_ERROR)
-                    result = None
                 if result is not None:
                     st.session_state["result"] = result
 
