@@ -191,12 +191,22 @@ def predict(
     raw_booster = booster.get_booster() if hasattr(booster, "get_booster") else booster
     contribs = np.asarray(raw_booster.predict(xgb.DMatrix(X), pred_contribs=True))
     n_features = len(registry.features)
+    logger.info(
+        "SHAP contribs shape=%s n_features=%d n_classes=%d predicted_idx=%d",
+        contribs.shape, n_features, n_classes, predicted_idx,
+    )
     if contribs.ndim == 3:
-        # Multi-class: (n_samples, n_classes, n_features + 1)
+        # (n_samples, n_classes, n_features + 1)
         feature_contribs = contribs[0, predicted_idx, :n_features]
+    elif contribs.ndim == 2 and contribs.shape[1] == n_classes * (n_features + 1):
+        # Flat multi-class: contributions for all classes concatenated horizontally
+        start = predicted_idx * (n_features + 1)
+        feature_contribs = contribs[0, start : start + n_features]
     else:
-        # Binary: (n_samples, n_features + 1)
+        # Binary or unknown shape: take first n_features of first sample
         feature_contribs = contribs[0, :n_features]
+    # Guarantee 1-D so downstream float() conversions never receive an array
+    feature_contribs = np.asarray(feature_contribs).ravel()
 
     sorted_entries = sorted(registry.features, key=lambda e: e.column_index)
     abs_sorted_indices = np.argsort(np.abs(feature_contribs))[::-1][:top_n_markers]
