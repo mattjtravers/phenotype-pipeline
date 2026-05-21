@@ -1,13 +1,12 @@
 """Tests for the prediction component — PRED-* specs."""
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-from genomic_ancestry_pipeline.models import MarkerContribution, PredictionResult
+from genomic_ancestry_pipeline.models import PredictionResult
 from genomic_ancestry_pipeline.prediction import PredictionError, predict
 
 
@@ -25,7 +24,11 @@ def _mock_artifact(feature_registry):
 
 
 def _mock_booster_proba(proba: list[float]):
-    """Returns a booster mock that produces the given class probabilities."""
+    """Returns a booster mock that produces the given class probabilities.
+
+    Simulates XGBClassifier: predict_proba() on the wrapper, get_booster().predict()
+    with pred_contribs=True on the underlying raw booster.
+    """
     booster = MagicMock()
     proba_array = np.array([proba])
     booster.predict_proba.return_value = proba_array
@@ -33,7 +36,10 @@ def _mock_booster_proba(proba: list[float]):
     n_features = 5
     contribs = np.zeros((1, n_features + 1))
     contribs[0, :n_features] = [0.34, 0.21, 0.10, 0.05, 0.03]
-    booster.predict.return_value = contribs
+    # get_booster() returns the underlying raw booster used for SHAP
+    raw_booster = MagicMock()
+    raw_booster.predict.return_value = contribs
+    booster.get_booster.return_value = raw_booster
     return booster
 
 
@@ -41,32 +47,29 @@ def _mock_booster_proba(proba: list[float]):
 
 
 # @spec PRED-PROC-001
-def test_predict_loads_artifact_from_s3_before_inference(minimal_vcf_bytes, feature_registry):
-    """predict() fetches the model artifact from S3 before running inference."""
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact") as mock_load, \
-         patch("genomic_ancestry_pipeline.prediction.boto3"):
-        artifact = _mock_artifact(feature_registry)
-        artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
-        mock_load.return_value = artifact
+def test_predict_uses_caller_supplied_artifact(minimal_vcf_bytes, feature_registry):
+    """predict() uses the artifact dict supplied by the caller; it does not load from S3."""
+    artifact = _mock_artifact(feature_registry)
+    artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-        predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    with patch("genomic_ancestry_pipeline.prediction.load_artifact") as mock_load:
+        result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
+        mock_load.assert_not_called()
 
-        mock_load.assert_called_once_with(bucket="my-bucket", run_id="models/run1/")
+    assert isinstance(result, PredictionResult)
 
 
 # @spec PRED-PROC-002
-def test_prediction_result_records_artifact_s3_key(minimal_vcf_bytes, feature_registry):
-    """PredictionResult.model_artifact_version contains the S3 key used."""
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact") as mock_load:
-        artifact = _mock_artifact(feature_registry)
-        artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
-        mock_load.return_value = artifact
+def test_prediction_result_records_artifact_version(minimal_vcf_bytes, feature_registry):
+    """PredictionResult.model_artifact_version contains the version string passed by the caller."""
+    artifact = _mock_artifact(feature_registry)
+    artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-        result = predict(
-            minimal_vcf_bytes,
-            model_artifact_version="models/20240115-a3f2c1/",
-            bucket="my-bucket",
-        )
+    result = predict(
+        minimal_vcf_bytes,
+        artifact=artifact,
+        model_artifact_version="models/20240115-a3f2c1/",
+    )
 
     assert result.model_artifact_version == "models/20240115-a3f2c1/"
 
@@ -77,15 +80,10 @@ def test_prediction_result_records_artifact_s3_key(minimal_vcf_bytes, feature_re
 # @spec PRED-PROC-012
 def test_multi_sample_vcf_raises_prediction_error(multi_sample_vcf_bytes, feature_registry):
     """VCF with more than one sample raises PredictionError; no prediction is produced."""
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact") as mock_load:
-        mock_load.return_value = _mock_artifact(feature_registry)
+    artifact = _mock_artifact(feature_registry)
 
-        with pytest.raises(PredictionError):
-            predict(
-                multi_sample_vcf_bytes,
-                model_artifact_version="models/run1/",
-                bucket="my-bucket",
-            )
+    with pytest.raises(PredictionError):
+        predict(multi_sample_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
 
 # ── Inference preprocessing ────────────────────────────────────────────────────
@@ -95,31 +93,25 @@ def test_multi_sample_vcf_raises_prediction_error(multi_sample_vcf_bytes, featur
 def test_inference_uses_stored_medians_without_refitting(minimal_vcf_bytes, feature_registry):
     """Inference imputes using artifact medians; no new median is computed from the input sample."""
     artifact = _mock_artifact(feature_registry)
-    booster = _mock_booster_proba([0.8, 0.1, 0.1])
-    artifact["booster"] = booster
+    artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact), \
-         patch("genomic_ancestry_pipeline.prediction.np") as mock_np:
-        # If the implementation computes a new median, np.median or np.nanmedian would be called.
-        # We verify it is NOT called during inference.
+    with patch("genomic_ancestry_pipeline.prediction.np") as mock_np:
         mock_np.median = MagicMock(side_effect=AssertionError("median must not be recomputed at inference"))
         mock_np.nanmedian = MagicMock(side_effect=AssertionError("nanmedian must not be recomputed at inference"))
-        # Allow all other numpy calls through
         mock_np.array = np.array
         mock_np.zeros = np.zeros
 
         try:
-            predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+            predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
         except AssertionError:
             pytest.fail("predict() recomputed imputation medians from the input sample")
         except Exception:
-            pass  # other failures are fine for this test
+            pass
 
 
 # @spec PRED-PROC-013
 def test_input_variants_absent_from_registry_are_silently_dropped(feature_registry):
     """Variants in the input VCF but absent from the FeatureRegistry are dropped without error."""
-    # VCF contains one variant the registry knows (28513871) and one it does not (99999999).
     vcf = (
         b"##fileformat=VCFv4.1\n"
         b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample1\n"
@@ -130,10 +122,8 @@ def test_input_variants_absent_from_registry_are_silently_dropped(feature_regist
     booster = _mock_booster_proba([0.8, 0.1, 0.1])
     artifact["booster"] = booster
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(vcf, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(vcf, artifact=artifact, model_artifact_version="models/run1/")
 
-    # Feature vector width must equal the registry size, not the input variant count
     predict_call_X = booster.predict_proba.call_args[0][0]
     assert predict_call_X.shape[1] == len(feature_registry.features)
     assert isinstance(result, PredictionResult)
@@ -146,14 +136,8 @@ def test_inference_applies_stored_feature_registry(minimal_vcf_bytes, feature_re
     booster = _mock_booster_proba([0.7, 0.2, 0.1])
     artifact["booster"] = booster
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(
-            minimal_vcf_bytes,
-            model_artifact_version="models/run1/",
-            bucket="my-bucket",
-        )
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
-    # The number of features passed to the booster must match the registry
     predict_call_X = booster.predict_proba.call_args[0][0]
     assert predict_call_X.shape[1] == len(feature_registry.features)
 
@@ -162,13 +146,12 @@ def test_inference_applies_stored_feature_registry(minimal_vcf_bytes, feature_re
 
 
 # @spec PRED-PROC-005
-def test_predict_returns_phenotype_label(minimal_vcf_bytes, feature_registry):
-    """PredictionResult contains a predicted_phenotype string."""
+def test_predict_returns_population_label(minimal_vcf_bytes, feature_registry):
+    """PredictionResult contains a predicted_phenotype string (ancestral population label)."""
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     assert isinstance(result.predicted_phenotype, str)
     assert result.predicted_phenotype in {"blue", "brown", "green"}
@@ -180,8 +163,7 @@ def test_confidence_score_is_max_class_probability(minimal_vcf_bytes, feature_re
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.75, 0.15, 0.10])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     assert abs(result.confidence_score - 0.75) < 1e-6
     assert 0.0 <= result.confidence_score <= 1.0
@@ -193,8 +175,7 @@ def test_prediction_result_includes_full_class_probabilities(minimal_vcf_bytes, 
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.75, 0.15, 0.10])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     assert set(result.class_probabilities.keys()) == {"blue", "brown", "green"}
     assert abs(sum(result.class_probabilities.values()) - 1.0) < 1e-6
@@ -210,13 +191,13 @@ def test_shap_computed_via_pred_contribs(minimal_vcf_bytes, feature_registry):
     booster = _mock_booster_proba([0.8, 0.1, 0.1])
     artifact["booster"] = booster
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
-    # booster.predict must be called with pred_contribs=True
-    predict_calls = booster.predict.call_args_list
+    # SHAP is computed via get_booster().predict(DMatrix, pred_contribs=True)
+    raw_booster = booster.get_booster.return_value
+    predict_calls = raw_booster.predict.call_args_list
     contribs_calls = [c for c in predict_calls if c[1].get("pred_contribs") is True]
-    assert len(contribs_calls) >= 1, "booster.predict(pred_contribs=True) was not called"
+    assert len(contribs_calls) >= 1, "raw_booster.predict(pred_contribs=True) was not called"
 
 
 # @spec PRED-PROC-008
@@ -226,16 +207,14 @@ def test_top_n_markers_returned_by_absolute_shap(minimal_vcf_bytes, feature_regi
     booster = _mock_booster_proba([0.8, 0.1, 0.1])
     artifact["booster"] = booster
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(
-            minimal_vcf_bytes,
-            model_artifact_version="models/run1/",
-            bucket="my-bucket",
-            top_n_markers=3,
-        )
+    result = predict(
+        minimal_vcf_bytes,
+        artifact=artifact,
+        model_artifact_version="models/run1/",
+        top_n_markers=3,
+    )
 
     assert len(result.top_markers) <= 3
-    # Markers should be sorted by absolute SHAP contribution descending
     abs_contribs = [abs(m.shap_contribution) for m in result.top_markers]
     assert abs_contribs == sorted(abs_contribs, reverse=True)
 
@@ -246,8 +225,7 @@ def test_marker_contribution_fields_complete(minimal_vcf_bytes, feature_registry
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     assert len(result.top_markers) > 0
     for marker in result.top_markers:
@@ -270,21 +248,19 @@ def test_prediction_result_is_pydantic_validated(minimal_vcf_bytes, feature_regi
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact):
-        result = predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     assert isinstance(result, PredictionResult)
 
 
 # @spec PRED-PROC-010
 def test_pydantic_validation_failure_raises_not_partial_result(minimal_vcf_bytes, feature_registry):
-    """If PredictionResult validation fails, PredictionError is raised; no partial result returned."""
+    """If PredictionResult validation fails, an error is raised; no partial result returned."""
     artifact = _mock_artifact(feature_registry)
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
-    with patch("genomic_ancestry_pipeline.prediction.load_artifact", return_value=artifact), \
-         patch("genomic_ancestry_pipeline.prediction.PredictionResult") as mock_model:
+    with patch("genomic_ancestry_pipeline.prediction.PredictionResult") as mock_model:
         mock_model.side_effect = ValueError("validation failure")
 
         with pytest.raises((PredictionError, ValueError)):
-            predict(minimal_vcf_bytes, model_artifact_version="models/run1/", bucket="my-bucket")
+            predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")

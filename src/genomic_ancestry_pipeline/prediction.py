@@ -130,41 +130,39 @@ def _build_feature_vector(
 #       PRED-PROC-012, PRED-PROC-013, PRED-DATA-001, PRED-DATA-002
 def predict(
     vcf_bytes: bytes,
-    model_artifact_version: str,
-    bucket: str,
+    artifact: dict,
+    model_artifact_version: str = "",
     top_n_markers: int = 20,
 ) -> PredictionResult:
     """Run single-sample inference and return a Pydantic-validated PredictionResult.
 
-    Loads the artifact bundle from S3, validates the input VCF, builds the feature
-    vector using the stored registry and medians (no refitting), runs
-    ``predict_proba`` and ``predict(pred_contribs=True)``, and assembles the
-    PredictionResult with phenotype, confidence, full class probabilities, and
-    top-N markers by absolute SHAP contribution.
+    The caller is responsible for supplying a pre-loaded artifact bundle — this
+    function does not load from S3. The Lambda passes its warm ``_artifact_cache``
+    directly; tests pass in-memory fixture dicts.
 
     Args:
         vcf_bytes: Raw VCF content with exactly one sample column.
-        model_artifact_version: S3 bundle prefix (e.g. ``"models/20240115-a3f2c1/"``)
-            identifying the artifact to load. Recorded verbatim in the returned
-            PredictionResult.
-        bucket: S3 bucket containing the artifact bundle.
+        artifact: Pre-loaded model artifact bundle dict containing keys ``booster``,
+            ``feature_registry``, ``imputation_medians``, and ``label_encoder``.
+        model_artifact_version: S3 bundle prefix recorded verbatim in the returned
+            PredictionResult for traceability (e.g. ``"models/20240115-a3f2c1/"``).
         top_n_markers: Maximum number of marker contributions to return, sorted by
             absolute SHAP value descending. Defaults to 20.
 
     Returns:
-        Pydantic-validated PredictionResult containing the predicted phenotype label,
-        confidence score (max class probability), full class probability distribution,
-        top-N marker contributions, and ``model_artifact_version``.
+        Pydantic-validated PredictionResult containing the predicted ancestral
+        population label, confidence score (max class probability), full class
+        probability distribution, top-N marker contributions, and
+        ``model_artifact_version``.
 
     Raises:
         PredictionError: If the VCF contains zero or multiple samples.
     """
     logger.info(
-        "predict start [bucket=%s artifact=%s top_n_markers=%d]",
-        bucket, model_artifact_version, top_n_markers,
+        "predict start [artifact_version=%s top_n_markers=%d]",
+        model_artifact_version, top_n_markers,
     )
 
-    artifact = load_artifact(bucket=bucket, run_id=model_artifact_version)
     booster = artifact["booster"]
     registry: FeatureRegistry = artifact["feature_registry"]
     medians: dict[str, float] = artifact["imputation_medians"]
@@ -184,12 +182,21 @@ def predict(
         label_encoder.get(i, str(i)): float(proba_row[i]) for i in range(n_classes)
     }
 
-    # XGBoost per-sample SHAP via pred_contribs=True returns shape (1, n_features + 1)
-    # — the trailing column is the bias term and is excluded from marker attribution.
-    contribs = np.asarray(booster.predict(X, pred_contribs=True))
-    contribs_row = contribs[0]
+    # XGBoost per-sample SHAP via pred_contribs=True requires the low-level Booster
+    # and a DMatrix input. When the artifact holds an XGBClassifier (sklearn wrapper),
+    # get_booster() extracts the underlying Booster; a raw Booster passes through.
+    # Multi-class output shape is (n_samples, n_classes, n_features + 1); binary is
+    # (n_samples, n_features + 1). We use the predicted-class slice for multi-class
+    # so markers reflect what drove this specific prediction.
+    raw_booster = booster.get_booster() if hasattr(booster, "get_booster") else booster
+    contribs = np.asarray(raw_booster.predict(xgb.DMatrix(X), pred_contribs=True))
     n_features = len(registry.features)
-    feature_contribs = contribs_row[:n_features]
+    if contribs.ndim == 3:
+        # Multi-class: (n_samples, n_classes, n_features + 1)
+        feature_contribs = contribs[0, predicted_idx, :n_features]
+    else:
+        # Binary: (n_samples, n_features + 1)
+        feature_contribs = contribs[0, :n_features]
 
     sorted_entries = sorted(registry.features, key=lambda e: e.column_index)
     abs_sorted_indices = np.argsort(np.abs(feature_contribs))[::-1][:top_n_markers]

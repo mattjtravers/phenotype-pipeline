@@ -61,42 +61,6 @@ _GENERIC_ERROR = "Prediction request failed — please try again."
 _EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 _NONE_SAMPLE = "None — use uploaded file"
 
-_POPULATION_NAMES: dict[str, str] = {
-    "ACB": "African Caribbean in Barbados",
-    "ASW": "African Ancestry in SW USA",
-    "BEB": "Bengali in Bangladesh",
-    "CDX": "Chinese Dai in Xishuangbanna",
-    "CEU": "Northern Europeans from Utah",
-    "CHB": "Han Chinese in Beijing",
-    "CHS": "Southern Han Chinese",
-    "CLM": "Colombian in Medellín",
-    "ESN": "Esan in Nigeria",
-    "FIN": "Finnish in Finland",
-    "GBR": "British in England/Scotland",
-    "GIH": "Gujarati Indian in Houston",
-    "GWD": "Gambian in Western Division",
-    "IBS": "Iberian in Spain",
-    "ITU": "Indian Telugu in the UK",
-    "JPT": "Japanese in Tokyo",
-    "KHV": "Kinh in Ho Chi Minh City",
-    "LWK": "Luhya in Webuye, Kenya",
-    "MSL": "Mende in Sierra Leone",
-    "MXL": "Mexican Ancestry in LA",
-    "PEL": "Peruvian in Lima",
-    "PJL": "Punjabi in Lahore",
-    "PUR": "Puerto Rican in Puerto Rico",
-    "STU": "Sri Lankan Tamil in the UK",
-    "TSI": "Toscani in Italy",
-    "YRI": "Yoruba in Ibadan, Nigeria",
-}
-
-
-def _format_phenotype_option(code: str) -> str:
-    """Format a population code for display, e.g. 'ACB - African Caribbean in Barbados'."""
-    name = _POPULATION_NAMES.get(code)
-    return f"{code} - {name}" if name else code
-
-
 # ── Pure helpers (unit-tested) ─────────────────────────────────────────────────
 
 
@@ -163,40 +127,18 @@ def validate_vcf_upload(filename: str, file_bytes: bytes, size_bytes: int) -> li
     return errors
 
 
-# @spec UI-UI-002, UI-UI-006
-def fetch_phenotype_labels(api_endpoint: str) -> list[str]:
-    """Fetch supported phenotype labels from ``{api_endpoint}/labels``.
-
-    Args:
-        api_endpoint: Base API URL (with or without trailing slash).
-
-    Returns:
-        List of phenotype label strings derived from the deployed model's
-        ``label_encoder.json``.
-
-    Raises:
-        requests.exceptions.RequestException: If the GET request fails or
-            times out. Callers (the Streamlit script) use this to disable
-            the phenotype dropdown per UI-UI-006.
-    """
-    url = f"{api_endpoint.rstrip('/')}/labels"
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    payload = response.json()
-    return list(payload.get("labels", []))
-
-
 # @spec UI-UI-008, UI-UI-010
 def dispatch_prediction(
     vcf_bytes: bytes,
-    phenotype: str,
     api_endpoint: str,
 ) -> PredictionResult:
-    """POST a VCF + phenotype to the Lambda API and return the PredictionResult.
+    """POST a VCF to the Lambda API and return the PredictionResult.
+
+    The model determines the ancestral population from the VCF data alone;
+    no phenotype field is sent.
 
     Args:
         vcf_bytes: Raw VCF content (single sample).
-        phenotype: Selected phenotype label.
         api_endpoint: Full Lambda ``/predict`` URL.
 
     Returns:
@@ -208,10 +150,7 @@ def dispatch_prediction(
         requests.exceptions.HTTPError: On non-2xx HTTP status (raised by
             :meth:`requests.Response.raise_for_status`).
     """
-    body = {
-        "vcf": vcf_bytes.decode("utf-8") if isinstance(vcf_bytes, bytes) else vcf_bytes,
-        "phenotype": phenotype,
-    }
+    body = {"vcf": vcf_bytes.decode("utf-8") if isinstance(vcf_bytes, bytes) else vcf_bytes}
     response = requests.post(api_endpoint, json=body, timeout=60)
     response.raise_for_status()
     return PredictionResult(**response.json())
@@ -256,37 +195,13 @@ def load_sample_files(examples_dir: Path) -> list[tuple[str, Path]]:
 # ── Streamlit application ──────────────────────────────────────────────────────
 
 
-def _try_fetch_labels(api_endpoint: str) -> tuple[list[str], str | None]:
-    """Fetch phenotype labels, returning (labels, error_message).
-
-    The fetch is dispatched via the ``genomic_ancestry_pipeline.ui`` module path rather
-    than the local name so that :func:`unittest.mock.patch` targets in tests
-    (which see ``genomic_ancestry_pipeline.ui`` but not the ``__main__`` module that
-    Streamlit's :class:`AppTest` runner uses) take effect. The real
-    ``fetch_phenotype_labels`` raises on empty/invalid endpoint; the except
-    branch produces the UI-UI-006 error message.
-    """
-    try:
-        from genomic_ancestry_pipeline import ui as _self
-        return _self.fetch_phenotype_labels(api_endpoint), None
-    except Exception as e:
-        logger.error(
-            "fetch_phenotype_labels failed [api_endpoint=%s error=%s]",
-            api_endpoint, e,
-        )
-        return [], (
-            "Could not load phenotype options — check API endpoint. "
-            f"({type(e).__name__})"
-        )
-
-
 def _map_error_response(payload: dict) -> str:
     """Map a Lambda error response to a user-facing message per UI-UI-015."""
     code = payload.get("error", "") if isinstance(payload, dict) else ""
     return _ERROR_MESSAGES.get(code, _GENERIC_ERROR)
 
 
-# @spec UI-UI-001, UI-UI-002, UI-UI-006, UI-UI-009, UI-UI-011, UI-UI-012,
+# @spec UI-UI-001, UI-UI-008, UI-UI-009, UI-UI-011, UI-UI-012,
 #       UI-UI-013, UI-UI-014, UI-UI-015, UI-UI-016, UI-UI-017, UI-UI-018,
 #       UI-UI-019, UI-UI-020, UI-UI-021, UI-UI-022
 def _render() -> None:
@@ -317,12 +232,10 @@ infrastructure to manage.
     st.divider()
 
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
-    labels, labels_error = _try_fetch_labels(api_endpoint)
-    if labels_error:
-        st.error(labels_error)
 
     # UI-UI-001: file upload widget restricted to .vcf
     uploaded_file = st.file_uploader("Upload SNP data", type=["vcf"])
+    st.caption("VCF format · single sample · max 50 MB")
 
     # UI-UI-016 / UI-UI-017: sample expander (hidden when examples/ is absent)
     sample_files = _self.load_sample_files(_EXAMPLES_DIR)
@@ -344,17 +257,8 @@ infrastructure to manage.
                     p for label, p in sample_files if label == selected_label
                 )
 
-    # UI-UI-002 / UI-UI-006: phenotype dropdown (disabled when labels missing)
-    phenotype_options = [_format_phenotype_option(c) for c in labels] if labels else ["(unavailable)"]
-    phenotype_selection = st.selectbox(
-        "Target phenotype",
-        options=phenotype_options,
-        disabled=not labels,
-    )
-    phenotype = phenotype_selection.split(" - ")[0] if labels else ""
-
     active_input_present = uploaded_file is not None or selected_sample_path is not None
-    submitted = st.button("Run Prediction", disabled=not labels or not active_input_present)
+    submitted = st.button("Run Prediction", disabled=not active_input_present)
 
     if submitted:
         if uploaded_file is not None:
@@ -379,7 +283,6 @@ infrastructure to manage.
                 try:
                     result = _self.dispatch_prediction(
                         vcf_bytes=file_bytes,
-                        phenotype=phenotype,
                         api_endpoint=api_endpoint,
                     )
                 except requests.exceptions.HTTPError as e:

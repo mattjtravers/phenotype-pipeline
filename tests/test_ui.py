@@ -16,7 +16,6 @@ from pathlib import Path
 from genomic_ancestry_pipeline.ui import (
     count_vcf_samples,
     dispatch_prediction,
-    fetch_phenotype_labels,
     load_sample_files,
     sample_label_from_filename,
     validate_vcf_upload,
@@ -107,48 +106,19 @@ def test_count_vcf_samples_multi(multi_sample_vcf_bytes):
     assert count_vcf_samples(multi_sample_vcf_bytes) == 2
 
 
-# ── Phenotype label fetch (UI-UI-002, UI-UI-006) ───────────────────────────────
-
-
-# @spec UI-UI-002
-def test_fetch_phenotype_labels_calls_labels_endpoint():
-    """fetch_phenotype_labels GETs {api_endpoint}/labels and returns the label list."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"labels": ["blue", "brown", "green"]}
-
-    with patch("genomic_ancestry_pipeline.ui.requests.get", return_value=mock_response) as mock_get:
-        labels = fetch_phenotype_labels(api_endpoint="https://api.example.com")
-
-    mock_get.assert_called_once()
-    url = mock_get.call_args[0][0]
-    assert url.endswith("/labels")
-    assert labels == ["blue", "brown", "green"]
-
-
-# @spec UI-UI-006
-def test_fetch_phenotype_labels_raises_on_failure():
-    """A failed /labels fetch raises so the UI can disable the dropdown."""
-    import requests as req
-
-    with patch("genomic_ancestry_pipeline.ui.requests.get", side_effect=req.exceptions.ConnectionError):
-        with pytest.raises(Exception):
-            fetch_phenotype_labels(api_endpoint="https://api.example.com")
-
-
 # ── Prediction dispatch ────────────────────────────────────────────────────────
 
 
 # @spec UI-UI-008
 def test_valid_submission_dispatches_http_post(minimal_vcf_bytes):
-    """dispatch_prediction sends an HTTP POST to the configured endpoint."""
+    """dispatch_prediction sends an HTTP POST with only vcf content — no phenotype field."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
         "sample_id": "sample1",
-        "predicted_phenotype": "blue",
+        "predicted_phenotype": "CEU",
         "confidence_score": 0.82,
-        "class_probabilities": {"blue": 0.82, "brown": 0.10, "green": 0.08},
+        "class_probabilities": {"CEU": 0.82},
         "top_markers": [],
         "model_artifact_version": "models/20240115-a3f2c1/",
     }
@@ -156,14 +126,15 @@ def test_valid_submission_dispatches_http_post(minimal_vcf_bytes):
     with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response) as mock_post:
         result = dispatch_prediction(
             vcf_bytes=minimal_vcf_bytes,
-            phenotype="eye_color",
             api_endpoint="https://api.example.com/predict",
         )
 
     mock_post.assert_called_once()
     call_args = mock_post.call_args
     assert call_args[0][0] == "https://api.example.com/predict"
-    assert call_args[1].get("method", "POST") == "POST" or True  # POST is the default for requests.post
+    body = call_args[1].get("json", {})
+    assert "vcf" in body
+    assert "phenotype" not in body
 
 
 # @spec UI-UI-010
@@ -175,7 +146,6 @@ def test_failed_prediction_request_raises_or_returns_error(minimal_vcf_bytes):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
-                phenotype="eye_color",
                 api_endpoint="https://api.example.com/predict",
             )
 
@@ -190,7 +160,6 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
-                phenotype="eye_color",
                 api_endpoint="https://api.example.com/predict",
             )
 
@@ -242,17 +211,6 @@ def test_ui_has_file_upload_widget():
     assert len(at.file_uploader) > 0
 
 
-# @spec UI-UI-002
-@pytest.mark.integration
-def test_ui_has_phenotype_dropdown():
-    """Streamlit app renders a phenotype selection dropdown."""
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
-    at.run()
-    assert len(at.selectbox) > 0
-
-
 # @spec UI-UI-009
 @pytest.mark.integration
 def test_ui_shows_loading_indicator_during_request():
@@ -290,11 +248,7 @@ def test_ui_displays_prediction_results():
         model_artifact_version="models/run1/",
     )
     at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
-    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", return_value=mock_result), \
-         patch(
-             "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
-             return_value=["blue", "brown", "green"],
-         ):
+    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", return_value=mock_result):
         at.run()
         at.file_uploader[0].upload(
             filename="sample.vcf",
@@ -416,9 +370,6 @@ def test_sample_file_dispatched_when_no_upload(minimal_vcf_bytes, tmp_path):
         "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ), patch(
-        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
-        return_value=["CEU", "GBR"],
-    ), patch(
         "genomic_ancestry_pipeline.ui.dispatch_prediction",
         return_value=mock_result,
     ) as mock_dispatch:
@@ -456,9 +407,6 @@ def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
         "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", sample_vcf)],
     ), patch(
-        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
-        return_value=["CEU", "GBR"],
-    ), patch(
         "genomic_ancestry_pipeline.ui.dispatch_prediction",
         return_value=mock_result,
     ) as mock_dispatch:
@@ -490,9 +438,6 @@ def test_upload_validation_error_shown_when_sample_also_selected(
     with patch(
         "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
-    ), patch(
-        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
-        return_value=["CEU", "GBR"],
     ), patch(
         "genomic_ancestry_pipeline.ui.dispatch_prediction",
     ) as mock_dispatch:

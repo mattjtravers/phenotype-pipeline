@@ -460,11 +460,13 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
                     request_id,
                 )
 
+            vcf_raw = body.get("vcf", "")
+            vcf_bytes = vcf_raw.encode("utf-8") if isinstance(vcf_raw, str) else vcf_raw
             try:
                 result = predict(
-                    vcf=body.get("vcf"),
-                    phenotype=body.get("phenotype"),
+                    vcf_bytes=vcf_bytes,
                     artifact=_artifact_cache,
+                    model_artifact_version=os.environ.get("MODEL_RUN_ID", ""),
                 )
             except ValidationError as e:
                 # PredictionResult Pydantic validation (PRED-PROC-010) → 500 INFERENCE_FAILED.

@@ -2,7 +2,7 @@
 
 ## Artifact Loading
 
-- [x] **PRED-PROC-001**: The system shall load the model artifact bundle (as defined in TRAIN-DATA-001) from S3 before running inference.
+- [x] **PRED-PROC-001**: The `predict` function shall accept a pre-loaded artifact bundle dict from the caller and shall not load from S3 internally; the caller is responsible for providing a complete bundle (as defined in TRAIN-DATA-001) before invoking inference.
 - [x] **PRED-PROC-002**: The system shall record the S3 bundle prefix of the artifact used in every `PredictionResult` under `model_artifact_version`, in the form `models/{run_id}/` (e.g. `models/20240115-a3f2c1/`).
 
 ## Input Validation

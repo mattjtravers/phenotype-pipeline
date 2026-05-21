@@ -25,7 +25,8 @@
 - [ ] **DEPLOY-BE-008**: The Lambda function shall be allocated 3008 MB memory and a 60-second timeout.
 - [ ] **DEPLOY-BE-009**: The Lambda function shall cache the model artifact bundle in `/tmp` after the first load, and reuse the cached bundle on subsequent warm invocations within the same container lifecycle.
 - [ ] **DEPLOY-BE-010**: The Lambda function shall accept invocation via an API Gateway HTTP API endpoint.
-- [ ] **DEPLOY-BE-013**: The Lambda function shall expose a `GET /labels` API Gateway route that returns the deployed model's phenotype label strings (sourced from the cached artifact's `label_encoder.json`) as a JSON body of shape `{"labels": [...]}`.
+- [ ] **DEPLOY-BE-013**: The Lambda function shall expose a `GET /labels` API Gateway route that returns the deployed model's population label strings (sourced from the cached artifact's `label_encoder.json`) as a JSON body of shape `{"labels": [...]}`.
+- [ ] **DEPLOY-BE-027**: The `POST /predict` Lambda route shall accept a JSON request body of shape `{"vcf": "<vcf_string>"}` where `vcf` is the raw VCF content as a UTF-8 string; no `phenotype` field is accepted or required — the model determines the ancestral population from the VCF data alone.
 
 ## IAM
 

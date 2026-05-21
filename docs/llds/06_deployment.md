@@ -108,7 +108,9 @@ The Lambda is fronted by an **API Gateway HTTP API** (not REST API) — HTTP API
 | `POST` | `/predict` | Runs inference on a single-sample VCF; returns a `PredictionResult` JSON body |
 | `GET`  | `/labels`  | Returns the deployed model's phenotype label list as JSON `{"labels": [...]}` |
 
-The `/labels` endpoint reads `label_encoder.json` from the cached artifact (or loads the artifact if cold). It exists so the Streamlit UI can populate its phenotype dropdown from the deployed model without hardcoding labels in the UI image. The response is the sorted list of label strings (the integer keys are an internal detail of training and are not exposed).
+The `/predict` endpoint accepts a JSON body of shape `{"vcf": "<vcf_string>"}` where `vcf` is the raw VCF content as a UTF-8 string. It passes the pre-cached artifact bundle directly to `predict()` — no S3 read occurs per-request. The `phenotype` field is not part of the request contract; the model determines the ancestral population from the VCF data alone.
+
+The `/labels` endpoint reads `label_encoder.json` from the cached artifact (or loads the artifact if cold). It returns the sorted list of population label strings so API consumers can discover which populations the deployed model recognises without inspecting the artifact directly. The integer keys are an internal training detail and are not exposed.
 
 ### Error contract
 

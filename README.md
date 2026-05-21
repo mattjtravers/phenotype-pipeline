@@ -32,7 +32,7 @@ The Genomic Ancestry Pipeline is an automated machine learning workflow that pre
 └───────────┬───────────┘
             │ (Public REST Endpoint)
             ▼
- [Streamlit Dashboard]   ──► Renders traits, predictive confidence, and SNP tags
+ [Streamlit Dashboard]   ──► Renders ancestral population prediction, confidence, and top SNP markers
 
 ```
 
@@ -55,7 +55,7 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 <a href="https://genomic-ancestry-pipeline.streamlit.app" target="_blank"><img src="assets/open-demo-button.svg" alt="Open Demo App"/></a>
 
-Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
+Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
 
 > **Run locally** — export `PHENO_API_ENDPOINT=https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com` then run `bash bin/05_ui.sh`.
 

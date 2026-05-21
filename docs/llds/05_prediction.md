@@ -8,7 +8,7 @@ The prediction component is the component most directly serving the Business Ana
 
 ## Inference Pipeline
 
-1. Load model artifact bundle from S3
+1. Accept a pre-loaded artifact bundle dict from the caller — loading from S3 is the caller's responsibility
 2. Accept raw SNP input — VCF must contain exactly one sample; reject multi-sample VCFs
 3. Apply preprocessing using stored `imputation_medians` (no re-fitting):
    - Variants present in the registry but absent from the input VCF are imputed to their training median
@@ -19,6 +19,19 @@ The prediction component is the component most directly serving the Business Ana
 7. Compute per-sample SHAP marker contributions via `predict(X, pred_contribs=True)`
 8. Assemble and validate `PredictionResult` via Pydantic
 9. Return result to caller
+
+## Python API
+
+```python
+def predict(
+    vcf_bytes: bytes,
+    artifact: dict,
+    model_artifact_version: str = "",
+    top_n_markers: int = 20,
+) -> PredictionResult:
+```
+
+The caller supplies a pre-loaded artifact bundle (the dict returned by `load_artifact()`). This separates artifact loading from inference, allowing the Lambda to reuse its warm cache across requests without hitting S3 on every call. The `model_artifact_version` string is recorded verbatim in `PredictionResult` for traceability; the Lambda passes `os.environ["MODEL_RUN_ID"]`.
 
 ## Artifact Version Identity
 
@@ -73,6 +86,7 @@ Inference results are returned to the caller only — they are not persisted to 
 | Confidence score | Max class probability | Calibrated probability, entropy | Max probability is simple and interpretable; calibration is deferred; entropy is less intuitive for non-technical users |
 | Marker attribution | XGBoost built-in per-sample SHAP (`pred_contribs=True`) | Global gain importance, `shap` package, permutation importance | Per-sample attributions are more meaningful for the Business Analyst persona; XGBoost's tree SHAP requires no extra dependency and adds negligible compute |
 | Inference-time preprocessing | Stored medians + registry from artifact | Re-run preprocessing pipeline | Avoids reprocessing training data at inference time; ensures identical transformations |
+| Artifact loading | Caller's responsibility (passed as dict) | `predict()` loads from S3 internally | Lambda caches the artifact on cold start; having `predict()` reload on every call would hit S3 on every inference request, adding latency and cost. Separating loading from inference lets the Lambda pass its warm cache and lets tests pass fixtures directly. |
 
 ## Open Questions & Future Decisions
 

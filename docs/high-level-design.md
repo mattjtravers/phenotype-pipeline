@@ -2,7 +2,7 @@
 
 ## Problem
 
- Building machine learning pipelines can be a siloed process — business analysts, data scientists, and software engineers each maintain separate artifacts with no enforced traceability between intent and implementation. This project, predicting observable human phenotypes (e.g., eye color) from raw SNP (single nucleotide polymorphism) data, addresses both the ML prediction task and the process problem by using [Linked-Intent Development (LID)](https://github.com/jszmajda/lid) to unify intent from requirements through production code in a single "Spec-to-Production" lifecycle.
+ Building machine learning pipelines can be a siloed process — business analysts, data scientists, and software engineers each maintain separate artifacts with no enforced traceability between intent and implementation. This project predicts ancestral population from raw SNP (single nucleotide polymorphism) data using the 1000 Genomes Project cohorts as training labels, and addresses both the ML prediction task and the process problem by using [Linked-Intent Development (LID)](https://github.com/jszmajda/lid) to unify intent from requirements through production code in a single "Spec-to-Production" lifecycle.
 
 ## Approach
 
@@ -10,7 +10,7 @@
 - **Model**: XGBoost (gradient boosted decision trees)
 - **Preprocessing**: Median imputation for missing genotype values
 - **Validation**: K-fold cross-validation
-- **Output**: Phenotype prediction + confidence score, traceable to specific genomic markers
+- **Output**: Ancestral population prediction + confidence score, traceable to specific genomic markers
 - **Evaluation**: Confusion matrix and F1-score
 
 ## Target Users
