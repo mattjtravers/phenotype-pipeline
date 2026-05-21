@@ -57,7 +57,5 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
 
-> **Free tier** — Streamlit Community Cloud hosts the app for free; visiting the demo costs you nothing.
-
 > **Run locally** — export `PHENO_API_ENDPOINT=https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com` then run `bash bin/05_ui.sh`.
 
