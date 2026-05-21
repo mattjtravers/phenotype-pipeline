@@ -12,6 +12,6 @@ RUN pip install --no-cache-dir \
     pandas==3.0.3 \
     requests==2.32.5
 
-COPY src/phenotype_pipeline/ ./phenotype_pipeline/
+COPY src/genomic_ancestry_pipeline/ ./genomic_ancestry_pipeline/
 
-CMD ["phenotype_pipeline.deployment.lambda_handler"]
+CMD ["genomic_ancestry_pipeline.deployment.lambda_handler"]

@@ -13,7 +13,7 @@ from typing import IO
 import boto3
 import botocore
 
-from phenotype_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
+from genomic_ancestry_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
 
 
 class IngestError(Exception):

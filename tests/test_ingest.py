@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from phenotype_pipeline.ingest import IngestError, is_biallelic_snp, load_raw_dataset, run_etl
-from phenotype_pipeline.models import RawSnpDataset
+from genomic_ancestry_pipeline.ingest import IngestError, is_biallelic_snp, load_raw_dataset, run_etl
+from genomic_ancestry_pipeline.models import RawSnpDataset
 
 # ── minimal VCF fragments used across tests ────────────────────────────────────
 
@@ -37,7 +37,7 @@ def _vcf_gz_bytes(*extra_rows: str) -> bytes:
 # @spec INGEST-PROC-001
 def test_etl_copies_vcf_to_project_s3():
     """ETL writes the filtered VCF to s3://{dest_bucket}/data/raw/1000genomes.vcf.gz."""
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
         mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_gz_bytes(_BIALLELIC_ROW))}
         mock_s3.get_object.side_effect = None
@@ -67,7 +67,7 @@ def test_biallelic_snp_filter(vcf_line: str, expected: bool):
 # @spec INGEST-PROC-003
 def test_etl_copies_sample_metadata_tsv():
     """ETL copies the sample metadata TSV to s3://{dest_bucket}/data/raw/sample_info.tsv."""
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
         mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_gz_bytes(_BIALLELIC_ROW))}
 
@@ -83,7 +83,7 @@ def test_etl_copies_sample_metadata_tsv():
 # @spec INGEST-PROC-004
 def test_runtime_loader_streams_vcf_not_full_download():
     """load_raw_dataset uses get_object (streaming), not download_file."""
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
         mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_bytes(_BIALLELIC_ROW))}
 
@@ -96,7 +96,7 @@ def test_runtime_loader_streams_vcf_not_full_download():
 # @spec INGEST-PROC-005, INGEST-DATA-001
 def test_load_raw_dataset_returns_valid_raw_snp_dataset():
     """load_raw_dataset returns a RawSnpDataset with samples, variants, and metadata."""
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
         mock_s3.get_object.return_value = {"Body": io.BytesIO(_vcf_bytes(_BIALLELIC_ROW))}
 
@@ -112,7 +112,7 @@ def test_load_raw_dataset_returns_valid_raw_snp_dataset():
 def test_malformed_vcf_raises_ingest_error_before_any_records():
     """Structurally malformed VCF raises IngestError; no partial records emitted."""
     malformed = io.BytesIO(b"##fileformat=VCFv4.1\nnot_a_vcf_line\n")
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_boto3.client.return_value.get_object.return_value = {"Body": malformed}
 
         with pytest.raises(IngestError) as exc_info:
@@ -124,7 +124,7 @@ def test_malformed_vcf_raises_ingest_error_before_any_records():
 # @spec INGEST-PROC-007
 def test_missing_metadata_raises_ingest_error():
     """Unreadable metadata file raises IngestError before a RawSnpDataset is returned."""
-    with patch("phenotype_pipeline.ingest.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.ingest.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
 
         def _get_object(**kwargs):

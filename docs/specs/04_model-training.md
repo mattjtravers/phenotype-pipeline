@@ -2,7 +2,7 @@
 
 ## Execution Environment
 
-- [x] **TRAIN-BE-001**: Model training shall run exclusively as a SageMaker Training Job using a custom Docker container built from `Dockerfile.train`, containing the full pipeline stack; the container entry point shall be `phenotype_pipeline.sagemaker_train` (see `DEPLOY-BE-004`, `DEPLOY-BE-024`, `DEPLOY-BE-025`).
+- [x] **TRAIN-BE-001**: Model training shall run exclusively as a SageMaker Training Job using a custom Docker container built from `Dockerfile.train`, containing the full pipeline stack; the container entry point shall be `genomic_ancestry_pipeline.sagemaker_train` (see `DEPLOY-BE-004`, `DEPLOY-BE-024`, `DEPLOY-BE-025`).
 - [x] **TRAIN-BE-002**: The SageMaker Training Job shall use `ml.m5.2xlarge` as its default instance type, overridable via the launcher's `--instance-type` CLI flag (see `DEPLOY-BE-016`).
 
 ## Training Protocol

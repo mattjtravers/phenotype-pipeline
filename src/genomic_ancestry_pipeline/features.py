@@ -8,7 +8,7 @@ import logging
 
 import numpy as np
 
-from phenotype_pipeline.models import (
+from genomic_ancestry_pipeline.models import (
     CleanSnpDataset,
     FeatureEntry,
     FeatureMatrix,

@@ -1,7 +1,7 @@
 """CLI entry point for launching a SageMaker training job.
 
 This module is a thin command-line wrapper around
-:func:`phenotype_pipeline.deployment.launch_training_job`. Its single
+:func:`genomic_ancestry_pipeline.deployment.launch_training_job`. Its single
 responsibility is operational ergonomics:
 
 - Parse and validate CLI arguments.
@@ -14,7 +14,7 @@ responsibility is operational ergonomics:
   ``sam deploy --parameter-overrides MODEL_RUN_ID=$(launch_training ...)``
   is safe to use literally without additional shell guards.
 
-Log lines are routed by :mod:`phenotype_pipeline.logging_config`:
+Log lines are routed by :mod:`genomic_ancestry_pipeline.logging_config`:
 ``INFO``/``DEBUG`` → stdout, ``WARNING``/``ERROR`` → stderr. Because the
 ``run_id`` is the only intentional stdout payload on success, INFO logs
 during a successful run are also emitted to stdout but distinguishable
@@ -32,8 +32,8 @@ import sys
 
 import botocore.exceptions
 
-from phenotype_pipeline.deployment import generate_run_id, launch_training_job
-from phenotype_pipeline.logging_config import configure_logging
+from genomic_ancestry_pipeline.deployment import generate_run_id, launch_training_job
+from genomic_ancestry_pipeline.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phenotype_pipeline.features import build_feature_matrix
-from phenotype_pipeline.models import (
+from genomic_ancestry_pipeline.features import build_feature_matrix
+from genomic_ancestry_pipeline.models import (
     CleanSnpDataset,
     CleanVariant,
     FeatureMatrix,

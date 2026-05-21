@@ -27,8 +27,8 @@ import xgboost as xgb
 from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import StratifiedKFold
 
-from phenotype_pipeline.deployment import get_s3_paths
-from phenotype_pipeline.models import (
+from genomic_ancestry_pipeline.deployment import get_s3_paths
+from genomic_ancestry_pipeline.models import (
     AggregateMetrics,
     EvaluationReport,
     FeatureMatrix,

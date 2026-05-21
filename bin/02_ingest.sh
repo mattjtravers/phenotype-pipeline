@@ -8,7 +8,7 @@ set -euo pipefail
 : "${PHENO_S3_BUCKET:?Set PHENO_S3_BUCKET before running this script}"
 
 uv run python -c "
-from phenotype_pipeline.ingest import run_etl
+from genomic_ancestry_pipeline.ingest import run_etl
 run_etl(
     source_bucket='1000genomes',
     dest_bucket='${PHENO_S3_BUCKET}',

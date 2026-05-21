@@ -4,8 +4,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from phenotype_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
-from phenotype_pipeline.preprocessing import PreprocessingError, preprocess
+from genomic_ancestry_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
+from genomic_ancestry_pipeline.preprocessing import PreprocessingError, preprocess
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -211,7 +211,7 @@ def test_invalid_raw_dataset_raises_at_entry(sample_metadata):
 def test_validation_error_does_not_return_partial_result(raw_dataset, monkeypatch):
     """If CleanSnpDataset validation fails, a structured error is raised with no partial result."""
     # Patch Pydantic validation to simulate failure at output boundary
-    import phenotype_pipeline.preprocessing as mod
+    import genomic_ancestry_pipeline.preprocessing as mod
 
     original = mod.CleanSnpDataset if hasattr(mod, "CleanSnpDataset") else None
     if original is None:

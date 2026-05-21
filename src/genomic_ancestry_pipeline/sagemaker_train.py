@@ -19,11 +19,11 @@ from __future__ import annotations
 import logging
 import os
 
-from phenotype_pipeline.features import build_feature_matrix
-from phenotype_pipeline.ingest import load_raw_dataset
-from phenotype_pipeline.logging_config import configure_logging
-from phenotype_pipeline.preprocessing import preprocess
-from phenotype_pipeline.training import save_artifact, train
+from genomic_ancestry_pipeline.features import build_feature_matrix
+from genomic_ancestry_pipeline.ingest import load_raw_dataset
+from genomic_ancestry_pipeline.logging_config import configure_logging
+from genomic_ancestry_pipeline.preprocessing import preprocess
+from genomic_ancestry_pipeline.training import save_artifact, train
 
 configure_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)

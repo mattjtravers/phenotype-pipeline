@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 import botocore.exceptions
 import pytest
 
-from phenotype_pipeline.deployment import (
+from genomic_ancestry_pipeline.deployment import (
     generate_run_id,
     get_s3_paths,
     lambda_handler,
@@ -68,7 +68,7 @@ def test_s3_paths_follow_defined_structure():
 def patched_training_env():
     """Patches Estimator + boto3 S3 client so launch_training_job runs without AWS."""
     with patch("sagemaker.estimator.Estimator") as mock_estimator_cls, \
-         patch("phenotype_pipeline.deployment.boto3") as mock_boto3:
+         patch("genomic_ancestry_pipeline.deployment.boto3") as mock_boto3:
         instance = mock_estimator_cls.return_value
         instance.latest_training_job = MagicMock()
         instance.latest_training_job.describe.return_value = {"TrainingJobStatus": "Completed"}
@@ -246,9 +246,9 @@ def test_lambda_caches_artifact_on_cold_start_and_reuses_on_warm():
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", "phenotype": "eye_color"}),
     )
     load_calls = []
-    with patch("phenotype_pipeline.deployment.load_artifact") as mock_load, \
-         patch("phenotype_pipeline.deployment.predict") as mock_predict, \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact") as mock_load, \
+         patch("genomic_ancestry_pipeline.deployment.predict") as mock_predict, \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         mock_load.side_effect = lambda **kw: (load_calls.append(1) or _valid_artifact())
         mock_predict.return_value = MagicMock(model_dump=lambda: {})
 
@@ -264,9 +264,9 @@ def test_lambda_accepts_http_api_v2_event():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", "phenotype": "eye_color"}),
     )
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("phenotype_pipeline.deployment.predict", return_value=MagicMock(model_dump=lambda: {})), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch("genomic_ancestry_pipeline.deployment.predict", return_value=MagicMock(model_dump=lambda: {})), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert "statusCode" in response
     assert response["statusCode"] in (200, 400, 500, 503)
@@ -275,8 +275,8 @@ def test_lambda_accepts_http_api_v2_event():
 # @spec DEPLOY-BE-013
 def test_lambda_labels_endpoint_returns_phenotype_strings():
     event = _http_api_event("GET", "/labels")
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
 
     assert response.get("statusCode") == 200
@@ -296,9 +296,9 @@ def _body(response: dict) -> dict:
 def test_lambda_returns_503_when_artifact_missing(caplog):
     """Cold-start load fails (S3 object missing) → 503 MODEL_UNAVAILABLE."""
     event = _http_api_event("POST", "/predict", body=json.dumps({"vcf": "x", "phenotype": "y"}))
-    with patch("phenotype_pipeline.deployment.load_artifact",
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact",
                side_effect=FileNotFoundError("model.json missing")), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True), \
          caplog.at_level(logging.ERROR):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 503
@@ -310,8 +310,8 @@ def test_lambda_returns_503_when_bundle_incomplete():
     """Bundle missing one of the 5 required files → 503 MODEL_UNAVAILABLE."""
     incomplete = {"booster": MagicMock()}  # missing label_encoder, feature_registry, etc.
     event = _http_api_event("GET", "/labels")
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=incomplete), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=incomplete), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 503
     assert _body(response).get("error") == "MODEL_UNAVAILABLE"
@@ -327,8 +327,8 @@ def test_lambda_short_circuits_subsequent_requests_after_failed_load():
         load_calls.append(1)
         raise FileNotFoundError("incomplete bundle")
 
-    with patch("phenotype_pipeline.deployment.load_artifact", side_effect=boom), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", side_effect=boom), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         r1 = lambda_handler(event, context=None)
         r2 = lambda_handler(event, context=None)
         r3 = lambda_handler(event, context=None)
@@ -340,8 +340,8 @@ def test_lambda_short_circuits_subsequent_requests_after_failed_load():
 # @spec DEPLOY-BE-022
 def test_lambda_returns_400_invalid_input_for_malformed_body():
     event = _http_api_event("POST", "/predict", body="not json {{{{")
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 400
     assert _body(response).get("error") == "INVALID_INPUT"
@@ -354,10 +354,10 @@ def test_lambda_returns_400_invalid_vcf_for_multisample():
         "POST", "/predict",
         body=json.dumps({"vcf": "multi-sample-vcf-content", "phenotype": "eye_color"}),
     )
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("phenotype_pipeline.deployment.predict",
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch("genomic_ancestry_pipeline.deployment.predict",
                side_effect=ValueError("VCF contains more than one sample")), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 400
     assert _body(response).get("error") == "INVALID_VCF"
@@ -372,9 +372,9 @@ def test_lambda_returns_500_inference_failed_on_pydantic_validation():
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", "phenotype": "eye_color"}),
     )
     fake_err = ValidationError.from_exception_data("PredictionResult", line_errors=[])
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("phenotype_pipeline.deployment.predict", side_effect=fake_err), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch("genomic_ancestry_pipeline.deployment.predict", side_effect=fake_err), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 500
     assert _body(response).get("error") == "INFERENCE_FAILED"
@@ -386,10 +386,10 @@ def test_lambda_returns_500_inference_failed_when_predict_raises():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", "phenotype": "eye_color"}),
     )
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("phenotype_pipeline.deployment.predict",
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch("genomic_ancestry_pipeline.deployment.predict",
                side_effect=RuntimeError("SHAP exploded")), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 500
     assert _body(response).get("error") == "INFERENCE_FAILED"
@@ -405,9 +405,9 @@ def test_lambda_returns_well_formed_error_when_load_raises_unexpected_exception(
         "POST", "/predict",
         body=json.dumps({"vcf": "x", "phenotype": "y"}),
     )
-    with patch("phenotype_pipeline.deployment.load_artifact",
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact",
                side_effect=KeyError("unexpected blow-up")), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True):
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] in (500, 503)
     body = _body(response)
@@ -420,9 +420,9 @@ def test_lambda_error_response_format_includes_code_detail_and_logs_request_id(c
     """Every error response is {"error": code, "detail": msg} and logger.error carries code + request id."""
     event = _http_api_event("POST", "/predict", body="not json {{{{")
     event["requestContext"]["requestId"] = "req-xyz-789"
-    with patch("phenotype_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("phenotype_pipeline.deployment._artifact_cache", clear=True), \
-         caplog.at_level(logging.ERROR, logger="phenotype_pipeline.deployment"):
+    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
+         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True), \
+         caplog.at_level(logging.ERROR, logger="genomic_ancestry_pipeline.deployment"):
         response = lambda_handler(event, context=None)
 
     body = _body(response)

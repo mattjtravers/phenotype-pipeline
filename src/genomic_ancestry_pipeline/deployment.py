@@ -33,7 +33,7 @@ from typing import Any
 import boto3
 from pydantic import ValidationError
 
-from phenotype_pipeline.prediction import load_artifact, predict
+from genomic_ancestry_pipeline.prediction import load_artifact, predict
 
 # @spec DEPLOY-BE-019 — region pin; do not rely on AWS_DEFAULT_REGION.
 REGION = "us-east-1"

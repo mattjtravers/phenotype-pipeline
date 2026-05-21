@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from phenotype_pipeline.models import EvaluationReport, FeatureRegistry
-from phenotype_pipeline.training import save_artifact, train
+from genomic_ancestry_pipeline.models import EvaluationReport, FeatureRegistry
+from genomic_ancestry_pipeline.training import save_artifact, train
 
 
 # ── Training protocol ──────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ def test_training_uses_training_split_samples_only(feature_matrix):
     train_indices = [i for i, s in enumerate(feature_matrix.splits) if s == "train"]
     X_train_expected = feature_matrix.X[train_indices]
 
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -42,8 +42,8 @@ def test_training_uses_training_split_samples_only(feature_matrix):
 # @spec TRAIN-PROC-002
 def test_cross_validation_uses_configurable_k(feature_matrix):
     """Stratified k-fold CV runs with the configured k value."""
-    with patch("phenotype_pipeline.training.xgb"), \
-         patch("phenotype_pipeline.training.StratifiedKFold") as mock_kfold:
+    with patch("genomic_ancestry_pipeline.training.xgb"), \
+         patch("genomic_ancestry_pipeline.training.StratifiedKFold") as mock_kfold:
         mock_kfold.return_value.split.return_value = iter([])
         try:
             train(feature_matrix, k_folds=3)
@@ -55,7 +55,7 @@ def test_cross_validation_uses_configurable_k(feature_matrix):
 # @spec TRAIN-PROC-003
 def test_each_fold_uses_early_stopping(feature_matrix):
     """XGBClassifier is constructed with early_stopping_rounds per fold."""
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -73,7 +73,7 @@ def test_final_model_retrained_on_all_training_samples(feature_matrix):
     """After CV, a final model is fit on the complete training split."""
     train_count = sum(1 for s in feature_matrix.splits if s == "train")
 
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -93,7 +93,7 @@ def test_final_model_retrained_on_all_training_samples(feature_matrix):
 # @spec TRAIN-PROC-005
 def test_evaluation_report_contains_per_fold_f1_and_confusion_matrix(feature_matrix):
     """Each FoldResult has per-class F1 and a confusion matrix."""
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -112,7 +112,7 @@ def test_evaluation_report_contains_per_fold_f1_and_confusion_matrix(feature_mat
 # @spec TRAIN-PROC-006
 def test_aggregate_metrics_contain_macro_f1_mean_and_std(feature_matrix):
     """EvaluationReport.aggregate has f1_macro_mean and f1_macro_std."""
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -131,7 +131,7 @@ def test_test_set_evaluated_once_after_final_training(feature_matrix):
     test_indices = [i for i, s in enumerate(feature_matrix.splits) if s == "test"]
     X_test = feature_matrix.X[test_indices]
 
-    with patch("phenotype_pipeline.training.xgb") as mock_xgb:
+    with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
         mock_xgb.XGBClassifier.return_value = mock_clf
         mock_clf.fit.return_value = mock_clf
@@ -160,7 +160,7 @@ def test_test_set_evaluated_once_after_final_training(feature_matrix):
 def test_save_artifact_writes_required_files_to_s3(feature_registry):
     """save_artifact puts model.json, feature_registry.json, imputation_medians.json,
     evaluation_report.json, and label_encoder.json to s3://{bucket}/models/{run_id}/."""
-    from phenotype_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],
@@ -170,7 +170,7 @@ def test_save_artifact_writes_required_files_to_s3(feature_registry):
     mock_booster = MagicMock()
     mock_booster.save_model = MagicMock()
 
-    with patch("phenotype_pipeline.training.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.training.boto3") as mock_boto3:
         mock_s3 = mock_boto3.client.return_value
         save_artifact(
             booster=mock_booster,
@@ -192,7 +192,7 @@ def test_save_artifact_writes_required_files_to_s3(feature_registry):
 # @spec TRAIN-DATA-002
 def test_label_encoder_maps_int_indices_to_phenotype_strings(feature_registry):
     """label_encoder.json contains integer keys mapping to human-readable label strings."""
-    from phenotype_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],
@@ -202,7 +202,7 @@ def test_label_encoder_maps_int_indices_to_phenotype_strings(feature_registry):
     label_encoder = {0: "blue", 1: "brown", 2: "green"}
 
     captured = {}
-    with patch("phenotype_pipeline.training.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.training.boto3") as mock_boto3:
         def _capture(**kwargs):
             if "label_encoder" in kwargs.get("Key", ""):
                 captured["body"] = kwargs.get("Body", b"")
@@ -227,14 +227,14 @@ def test_label_encoder_maps_int_indices_to_phenotype_strings(feature_registry):
 # @spec TRAIN-DATA-003
 def test_artifact_bundle_is_self_contained(feature_registry):
     """The artifact bundle includes everything needed for inference without re-running training."""
-    from phenotype_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],
         aggregate=AggregateMetrics(f1_macro_mean=0.9, f1_macro_std=0.05, confusion_matrix_mean=[]),
         test_set=TestSetMetrics(f1_per_class={}, f1_macro=0.0, confusion_matrix=[]),
     )
-    with patch("phenotype_pipeline.training.boto3") as mock_boto3:
+    with patch("genomic_ancestry_pipeline.training.boto3") as mock_boto3:
         save_artifact(
             booster=MagicMock(),
             registry=feature_registry,

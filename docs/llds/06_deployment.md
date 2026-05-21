@@ -5,7 +5,7 @@
 This component owns all AWS infrastructure concerns: S3 bucket structure, SageMaker training job configuration, Lambda inference wrapper, and IAM policies.
 
 The two AWS execution environments have distinct roles:
-- **SageMaker Training Job** — canonical environment for training; runs `phenotype_pipeline.sagemaker_train` in a custom container built from `Dockerfile.train`
+- **SageMaker Training Job** — canonical environment for training; runs `genomic_ancestry_pipeline.sagemaker_train` in a custom container built from `Dockerfile.train`
 - **Lambda** — inference only; loads the trained model artifact from S3 and serves predictions; packaged as a container image built from `Dockerfile`
 
 The deployment layer is a thin wrapper. It does not contain ML logic. It adapts the pipeline's interfaces to these two AWS execution environments.
@@ -38,22 +38,22 @@ s3://{bucket}/
 
 ## Container Images
 
-The pipeline uses two distinct container images — one for SageMaker training, one for Lambda inference. They share Python 3.12 and the same `src/phenotype_pipeline/` package source but have incompatible base images and entry-point contracts.
+The pipeline uses two distinct container images — one for SageMaker training, one for Lambda inference. They share Python 3.12 and the same `src/genomic_ancestry_pipeline/` package source but have incompatible base images and entry-point contracts.
 
 | Image | Dockerfile | Base image | Entry point | Published to ECR by |
 |---|---|---|---|---|
-| Training | `Dockerfile.train` | `python:3.12-slim` | `python -m phenotype_pipeline.sagemaker_train` | `bin/03_train.sh` (before each training run) |
-| Inference | `Dockerfile` | `public.ecr.aws/lambda/python:3.12` | `phenotype_pipeline.deployment.lambda_handler` | `sam build && sam deploy` (step 4) |
+| Training | `Dockerfile.train` | `python:3.12-slim` | `python -m genomic_ancestry_pipeline.sagemaker_train` | `bin/03_train.sh` (before each training run) |
+| Inference | `Dockerfile` | `public.ecr.aws/lambda/python:3.12` | `genomic_ancestry_pipeline.deployment.lambda_handler` | `sam build && sam deploy` (step 4) |
 
-**Training image** (`Dockerfile.train`): installs runtime ML dependencies (XGBoost, scikit-learn, pandas, NumPy, Pydantic, boto3), copies `src/phenotype_pipeline/` to `/opt/ml/code/phenotype_pipeline/`, and sets `PYTHONPATH=/opt/ml/code`. Built and pushed to the ECR repository `phenotype-pipeline-training` by `bin/03_train.sh`; the resulting URI is exported as `PHENO_TRAINING_IMAGE_URI` for the training launcher.
+**Training image** (`Dockerfile.train`): installs runtime ML dependencies (XGBoost, scikit-learn, pandas, NumPy, Pydantic, boto3), copies `src/genomic_ancestry_pipeline/` to `/opt/ml/code/genomic_ancestry_pipeline/`, and sets `PYTHONPATH=/opt/ml/code`. Built and pushed to the ECR repository `phenotype-pipeline-training` by `bin/03_train.sh`; the resulting URI is exported as `PHENO_TRAINING_IMAGE_URI` for the training launcher.
 
-**Inference image** (`Dockerfile`): built from the AWS Lambda Python 3.12 base, which bundles the Lambda Runtime Interface Client as `ENTRYPOINT`. Copies `src/phenotype_pipeline/` to `${LAMBDA_TASK_ROOT}`. Does not include `sagemaker` or `streamlit` (training and UI dependencies not needed at inference time). Published automatically by `sam build && sam deploy`.
+**Inference image** (`Dockerfile`): built from the AWS Lambda Python 3.12 base, which bundles the Lambda Runtime Interface Client as `ENTRYPOINT`. Copies `src/genomic_ancestry_pipeline/` to `${LAMBDA_TASK_ROOT}`. Does not include `sagemaker` or `streamlit` (training and UI dependencies not needed at inference time). Published automatically by `sam build && sam deploy`.
 
 The two images are kept separate because Lambda requires the Lambda RIC as `ENTRYPOINT` and SageMaker requires a training script as `CMD`; combining them into one image would require entry-point switching logic and obscure both contracts.
 
 ## SageMaker Training Job
 
-Training runs as a SageMaker Training Job using the custom training container built from `Dockerfile.train`. The container entry point is `phenotype_pipeline.sagemaker_train` (invoked as `python -m phenotype_pipeline.sagemaker_train`), which reads pipeline parameters from the environment variables injected by the launcher and orchestrates the full training pipeline in sequence: `load_raw_dataset` → `preprocess` → `build_feature_matrix` → `train` → `save_artifact`.
+Training runs as a SageMaker Training Job using the custom training container built from `Dockerfile.train`. The container entry point is `genomic_ancestry_pipeline.sagemaker_train` (invoked as `python -m genomic_ancestry_pipeline.sagemaker_train`), which reads pipeline parameters from the environment variables injected by the launcher and orchestrates the full training pipeline in sequence: `load_raw_dataset` → `preprocess` → `build_feature_matrix` → `train` → `save_artifact`.
 
 Key configuration:
 - **Instance type**: `ml.m5.2xlarge` (8 vCPU, 32 GB RAM) — sufficient for 1000 Genomes scale
@@ -65,7 +65,7 @@ SageMaker is used for training only. Inference runs in Lambda (see below).
 
 ### Training Launch
 
-Training jobs are launched programmatically via the **SageMaker Python SDK** (`sagemaker` package), not raw `boto3` and not CloudFormation. A dedicated launcher script `src/phenotype_pipeline/launch_training.py` is the single entry point for kicking off a training run.
+Training jobs are launched programmatically via the **SageMaker Python SDK** (`sagemaker` package), not raw `boto3` and not CloudFormation. A dedicated launcher script `src/genomic_ancestry_pipeline/launch_training.py` is the single entry point for kicking off a training run.
 
 Before invoking the launcher, `bin/03_train.sh` builds `Dockerfile.train`, pushes the resulting image to the ECR repository `phenotype-pipeline-training` in `us-east-1`, and exports the image URI as `PHENO_TRAINING_IMAGE_URI`. The launcher reads this variable as the container image URI passed to `Estimator`.
 

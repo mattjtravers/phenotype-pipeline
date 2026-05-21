@@ -17,11 +17,11 @@ ENV PATH="/opt/ml/code:${PATH}"
 # 50K variants × 2504 samples ≈ 6 GB with interned genotype strings.
 ENV MAX_VARIANTS=50000
 
-COPY src/phenotype_pipeline/ ./phenotype_pipeline/
+COPY src/genomic_ancestry_pipeline/ ./genomic_ancestry_pipeline/
 
 # SageMaker BYOC calls `docker run <image> train`, overriding CMD.
 # Provide an executable `train` script in PATH so SageMaker finds it.
-RUN printf '#!/bin/bash\nexec python -m phenotype_pipeline.sagemaker_train "$@"\n' \
+RUN printf '#!/bin/bash\nexec python -m genomic_ancestry_pipeline.sagemaker_train "$@"\n' \
     > /opt/ml/code/train && chmod +x /opt/ml/code/train
 
 CMD ["train"]

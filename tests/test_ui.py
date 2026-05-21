@@ -13,7 +13,7 @@ import pytest
 
 from pathlib import Path
 
-from phenotype_pipeline.ui import (
+from genomic_ancestry_pipeline.ui import (
     count_vcf_samples,
     dispatch_prediction,
     fetch_phenotype_labels,
@@ -117,7 +117,7 @@ def test_fetch_phenotype_labels_calls_labels_endpoint():
     mock_response.status_code = 200
     mock_response.json.return_value = {"labels": ["blue", "brown", "green"]}
 
-    with patch("phenotype_pipeline.ui.requests.get", return_value=mock_response) as mock_get:
+    with patch("genomic_ancestry_pipeline.ui.requests.get", return_value=mock_response) as mock_get:
         labels = fetch_phenotype_labels(api_endpoint="https://api.example.com")
 
     mock_get.assert_called_once()
@@ -131,7 +131,7 @@ def test_fetch_phenotype_labels_raises_on_failure():
     """A failed /labels fetch raises so the UI can disable the dropdown."""
     import requests as req
 
-    with patch("phenotype_pipeline.ui.requests.get", side_effect=req.exceptions.ConnectionError):
+    with patch("genomic_ancestry_pipeline.ui.requests.get", side_effect=req.exceptions.ConnectionError):
         with pytest.raises(Exception):
             fetch_phenotype_labels(api_endpoint="https://api.example.com")
 
@@ -153,7 +153,7 @@ def test_valid_submission_dispatches_http_post(minimal_vcf_bytes):
         "model_artifact_version": "models/20240115-a3f2c1/",
     }
 
-    with patch("phenotype_pipeline.ui.requests.post", return_value=mock_response) as mock_post:
+    with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response) as mock_post:
         result = dispatch_prediction(
             vcf_bytes=minimal_vcf_bytes,
             phenotype="eye_color",
@@ -171,7 +171,7 @@ def test_failed_prediction_request_raises_or_returns_error(minimal_vcf_bytes):
     """A failed or timed-out prediction request raises an exception (not a silent failure)."""
     import requests as req
 
-    with patch("phenotype_pipeline.ui.requests.post", side_effect=req.exceptions.Timeout):
+    with patch("genomic_ancestry_pipeline.ui.requests.post", side_effect=req.exceptions.Timeout):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
@@ -186,7 +186,7 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
     mock_response.status_code = 500
     mock_response.raise_for_status.side_effect = Exception("500 Server Error")
 
-    with patch("phenotype_pipeline.ui.requests.post", return_value=mock_response):
+    with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
@@ -237,7 +237,7 @@ def test_ui_has_file_upload_widget():
     """Streamlit app renders a file upload widget accepting .vcf files."""
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
     assert len(at.file_uploader) > 0
 
@@ -248,7 +248,7 @@ def test_ui_has_phenotype_dropdown():
     """Streamlit app renders a phenotype selection dropdown."""
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
     assert len(at.selectbox) > 0
 
@@ -259,7 +259,7 @@ def test_ui_shows_loading_indicator_during_request():
     """A loading indicator appears while a prediction is in progress."""
     from streamlit.testing.v1 import AppTest
 
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
     # Upload a file and submit; spinner or progress should appear
     at.file_uploader[0].upload(
@@ -267,7 +267,7 @@ def test_ui_shows_loading_indicator_during_request():
         content=b"##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1\n",
         mime_type="text/plain",
     )
-    with patch("phenotype_pipeline.ui.dispatch_prediction", side_effect=lambda **_: None):
+    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", side_effect=lambda **_: None):
         at.button[0].click().run()
     # At minimum the submit button exists; spinner behavior verified via manual testing
     assert len(at.button) > 0
@@ -279,7 +279,7 @@ def test_ui_displays_prediction_results():
     """After a successful prediction, label, confidence, and top markers are shown."""
     from streamlit.testing.v1 import AppTest
 
-    from phenotype_pipeline.models import PredictionResult
+    from genomic_ancestry_pipeline.models import PredictionResult
 
     mock_result = PredictionResult(
         sample_id="sample1",
@@ -289,10 +289,10 @@ def test_ui_displays_prediction_results():
         top_markers=[],
         model_artifact_version="models/run1/",
     )
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
-    with patch("phenotype_pipeline.ui.dispatch_prediction", return_value=mock_result), \
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
+    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", return_value=mock_result), \
          patch(
-             "phenotype_pipeline.ui.fetch_phenotype_labels",
+             "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
              return_value=["blue", "brown", "green"],
          ):
         at.run()
@@ -314,7 +314,7 @@ def test_ui_displays_prediction_results():
 def test_ui_shows_marker_table():
     """Top contributing markers are shown in a ranked table and a horizontal bar chart."""
     from streamlit.testing.v1 import AppTest
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
     # Presence of a dataframe element verifies the table is rendered
     assert len(at.dataframe) > 0
@@ -325,7 +325,7 @@ def test_ui_shows_marker_table():
 def test_ui_provides_json_download_button():
     """A download button exports the full PredictionResult as JSON."""
     from streamlit.testing.v1 import AppTest
-    at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
     download_buttons = [b for b in at.button if "download" in str(b).lower()]
     assert len(download_buttons) > 0
@@ -344,10 +344,10 @@ def test_sample_expander_visible_when_examples_present(minimal_vcf_bytes, tmp_pa
     fake_vcf.write_bytes(minimal_vcf_bytes)
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ):
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
 
     expander_labels = [str(e.label) for e in at.expander]
@@ -364,10 +364,10 @@ def test_sample_radio_has_none_as_first_option(minimal_vcf_bytes, tmp_path):
     fake_vcf.write_bytes(minimal_vcf_bytes)
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ):
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
 
     assert at.radio[0].options[0] == "None — use uploaded file"
@@ -383,10 +383,10 @@ def test_sample_radio_defaults_to_none(minimal_vcf_bytes, tmp_path):
     fake_vcf.write_bytes(minimal_vcf_bytes)
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ):
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
 
     assert at.radio[0].value == "None — use uploaded file"
@@ -398,7 +398,7 @@ def test_sample_file_dispatched_when_no_upload(minimal_vcf_bytes, tmp_path):
     """When a sample is selected and no file is uploaded, the sample bytes are dispatched."""
     from streamlit.testing.v1 import AppTest
 
-    from phenotype_pipeline.models import PredictionResult
+    from genomic_ancestry_pipeline.models import PredictionResult
 
     fake_vcf = tmp_path / "sample_blue_eyes.vcf"
     fake_vcf.write_bytes(minimal_vcf_bytes)
@@ -413,16 +413,16 @@ def test_sample_file_dispatched_when_no_upload(minimal_vcf_bytes, tmp_path):
     )
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ), patch(
-        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
         return_value=["CEU", "GBR"],
     ), patch(
-        "phenotype_pipeline.ui.dispatch_prediction",
+        "genomic_ancestry_pipeline.ui.dispatch_prediction",
         return_value=mock_result,
     ) as mock_dispatch:
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
         at.radio[0].set_value("Blue eyes").run()
         at.button[0].click().run()
@@ -437,7 +437,7 @@ def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
     """When both an upload and a sample are present, the uploaded file is dispatched."""
     from streamlit.testing.v1 import AppTest
 
-    from phenotype_pipeline.models import PredictionResult
+    from genomic_ancestry_pipeline.models import PredictionResult
 
     sample_vcf = tmp_path / "sample_blue_eyes.vcf"
     sample_content = b"##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample_file\n"
@@ -453,16 +453,16 @@ def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
     )
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", sample_vcf)],
     ), patch(
-        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
         return_value=["CEU", "GBR"],
     ), patch(
-        "phenotype_pipeline.ui.dispatch_prediction",
+        "genomic_ancestry_pipeline.ui.dispatch_prediction",
         return_value=mock_result,
     ) as mock_dispatch:
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
         at.radio[0].set_value("Blue eyes").run()
         at.file_uploader[0].upload(
@@ -488,15 +488,15 @@ def test_upload_validation_error_shown_when_sample_also_selected(
     fake_vcf.write_bytes(minimal_vcf_bytes)
 
     with patch(
-        "phenotype_pipeline.ui.load_sample_files",
+        "genomic_ancestry_pipeline.ui.load_sample_files",
         return_value=[("Blue eyes", fake_vcf)],
     ), patch(
-        "phenotype_pipeline.ui.fetch_phenotype_labels",
+        "genomic_ancestry_pipeline.ui.fetch_phenotype_labels",
         return_value=["CEU", "GBR"],
     ), patch(
-        "phenotype_pipeline.ui.dispatch_prediction",
+        "genomic_ancestry_pipeline.ui.dispatch_prediction",
     ) as mock_dispatch:
-        at = AppTest.from_file("src/phenotype_pipeline/ui.py")
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
         at.run()
         at.radio[0].set_value("Blue eyes").run()
         at.file_uploader[0].upload(

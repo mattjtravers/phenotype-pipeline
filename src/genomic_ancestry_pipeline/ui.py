@@ -27,7 +27,7 @@ from pathlib import Path
 import requests
 import streamlit as st
 
-from phenotype_pipeline.models import PredictionResult
+from genomic_ancestry_pipeline.models import PredictionResult
 
 logger = logging.getLogger(__name__)
 
@@ -259,15 +259,15 @@ def load_sample_files(examples_dir: Path) -> list[tuple[str, Path]]:
 def _try_fetch_labels(api_endpoint: str) -> tuple[list[str], str | None]:
     """Fetch phenotype labels, returning (labels, error_message).
 
-    The fetch is dispatched via the ``phenotype_pipeline.ui`` module path rather
+    The fetch is dispatched via the ``genomic_ancestry_pipeline.ui`` module path rather
     than the local name so that :func:`unittest.mock.patch` targets in tests
-    (which see ``phenotype_pipeline.ui`` but not the ``__main__`` module that
+    (which see ``genomic_ancestry_pipeline.ui`` but not the ``__main__`` module that
     Streamlit's :class:`AppTest` runner uses) take effect. The real
     ``fetch_phenotype_labels`` raises on empty/invalid endpoint; the except
     branch produces the UI-UI-006 error message.
     """
     try:
-        from phenotype_pipeline import ui as _self
+        from genomic_ancestry_pipeline import ui as _self
         return _self.fetch_phenotype_labels(api_endpoint), None
     except Exception as e:
         logger.error(
@@ -297,8 +297,8 @@ def _render() -> None:
     and returns nothing.
     """
     # Route through the module reference so unittest.mock patches applied to
-    # phenotype_pipeline.ui.* names take effect inside AppTest runs.
-    from phenotype_pipeline import ui as _self
+    # genomic_ancestry_pipeline.ui.* names take effect inside AppTest runs.
+    from genomic_ancestry_pipeline import ui as _self
 
     st.title("Genomic Ancestry Pipeline")
     st.markdown(
@@ -459,14 +459,14 @@ import sys as _sys
 import types as _types
 
 # When Streamlit exec's this file directly it is not registered in sys.modules,
-# so `from phenotype_pipeline import ui as _self` inside _render() would trigger
+# so `from genomic_ancestry_pipeline import ui as _self` inside _render() would trigger
 # a fresh import that re-executes this module and calls _render() a second time,
 # producing duplicate widget IDs. Registering the module here first ensures the
 # self-import returns the cached module without re-executing.
-if "phenotype_pipeline.ui" not in _sys.modules:
-    _stub = _types.ModuleType("phenotype_pipeline.ui")
+if "genomic_ancestry_pipeline.ui" not in _sys.modules:
+    _stub = _types.ModuleType("genomic_ancestry_pipeline.ui")
     _stub.__dict__.update(globals())
-    _sys.modules["phenotype_pipeline.ui"] = _stub
+    _sys.modules["genomic_ancestry_pipeline.ui"] = _stub
 
 del _sys, _types
 

@@ -34,7 +34,7 @@ export PHENO_TRAINING_IMAGE_URI="$IMAGE_URI"
 
 # ── Launch SageMaker training job ─────────────────────────────────────────────
 echo "Launching SageMaker training job (~30 min on ml.m5.2xlarge)"
-RUN_ID=$(LOG_LEVEL=WARNING uv run python -m phenotype_pipeline.launch_training \
+RUN_ID=$(LOG_LEVEL=WARNING uv run python -m genomic_ancestry_pipeline.launch_training \
     --bucket "$PHENO_S3_BUCKET" \
     --instance-type ml.m5.2xlarge \
     --k-folds 5 \

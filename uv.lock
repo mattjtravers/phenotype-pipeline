@@ -544,6 +544,51 @@ wheels = [
 ]
 
 [[package]]
+name = "genomic-ancestry-pipeline"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "boto3" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "sagemaker" },
+    { name = "scikit-learn" },
+    { name = "streamlit" },
+    { name = "xgboost" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "aws-sam-cli" },
+    { name = "moto", extra = ["s3"] },
+    { name = "pytest" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "boto3", specifier = "==1.43.7" },
+    { name = "numpy", specifier = "==2.4.4" },
+    { name = "pandas", specifier = "==3.0.3" },
+    { name = "pydantic", specifier = "==2.13.4" },
+    { name = "requests", specifier = "==2.32.5" },
+    { name = "sagemaker", specifier = "==2.257.3" },
+    { name = "scikit-learn", specifier = "==1.8.0" },
+    { name = "streamlit", specifier = "==1.57.0" },
+    { name = "xgboost", specifier = "==3.2.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "aws-sam-cli", specifier = "==1.148.0" },
+    { name = "moto", extras = ["s3", "sagemaker"], specifier = "==5.2.1" },
+    { name = "pytest", specifier = "==9.0.3" },
+    { name = "pyyaml", specifier = "==6.0.3" },
+]
+
+[[package]]
 name = "gitdb"
 version = "4.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -1081,51 +1126,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/32/37/0c730979d3890f8096a86af2683fac74edd4d15cb037391098dca70dcb1d/pathos-0.3.5.tar.gz", hash = "sha256:8fe041b8545c5d3880a038f866022bdebf935e5cf68f56ed3407cb7e65193a61", size = 166975, upload-time = "2026-01-20T00:06:57.848Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/44/be2146c650ee9ca4d9a770c995f5c92c1ea52292dcf618ce1a336d3146dd/pathos-0.3.5-py3-none-any.whl", hash = "sha256:c95b04103c40a16c08db69cd4b5c52624d55208beadf1348681edece809ec4f8", size = 82248, upload-time = "2026-01-20T00:06:56.291Z" },
-]
-
-[[package]]
-name = "phenotype-pipeline"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "boto3" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "sagemaker" },
-    { name = "scikit-learn" },
-    { name = "streamlit" },
-    { name = "xgboost" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "aws-sam-cli" },
-    { name = "moto", extra = ["s3"] },
-    { name = "pytest" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "boto3", specifier = "==1.43.7" },
-    { name = "numpy", specifier = "==2.4.4" },
-    { name = "pandas", specifier = "==3.0.3" },
-    { name = "pydantic", specifier = "==2.13.4" },
-    { name = "requests", specifier = "==2.32.5" },
-    { name = "sagemaker", specifier = "==2.257.3" },
-    { name = "scikit-learn", specifier = "==1.8.0" },
-    { name = "streamlit", specifier = "==1.57.0" },
-    { name = "xgboost", specifier = "==3.2.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "aws-sam-cli", specifier = "==1.148.0" },
-    { name = "moto", extras = ["s3", "sagemaker"], specifier = "==5.2.1" },
-    { name = "pytest", specifier = "==9.0.3" },
-    { name = "pyyaml", specifier = "==6.0.3" },
 ]
 
 [[package]]

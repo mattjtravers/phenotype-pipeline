@@ -25,7 +25,7 @@ import boto3
 import numpy as np
 import xgboost as xgb
 
-from phenotype_pipeline.models import (
+from genomic_ancestry_pipeline.models import (
     FeatureRegistry,
     MarkerContribution,
     PredictionResult,

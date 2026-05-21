@@ -5,7 +5,7 @@ import logging
 
 import numpy as np
 
-from phenotype_pipeline.models import CleanSnpDataset, CleanVariant, RawSnpDataset
+from genomic_ancestry_pipeline.models import CleanSnpDataset, CleanVariant, RawSnpDataset
 
 
 class PreprocessingError(Exception):
