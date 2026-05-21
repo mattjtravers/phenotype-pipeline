@@ -53,7 +53,7 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-[![Open Demo App](https://img.shields.io/badge/Open_Demo_App-2ea44f?logo=streamlit&logoColor=white&style=for-the-badge)](https://phenotype-pipeline.streamlit.app)
+[![Open Demo App](assets/open-demo-button.svg)](https://phenotype-pipeline.streamlit.app)
 
 Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
 

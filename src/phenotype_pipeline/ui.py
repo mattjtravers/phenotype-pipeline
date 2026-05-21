@@ -282,7 +282,9 @@ def _render() -> None:
         # UI-UI-018 / UI-UI-019: expander open by default; radio starts at None
         with st.expander("Don't have a file? Try a sample", expanded=True):
             sample_options = [_NONE_SAMPLE] + [label for label, _ in sample_files]
-            selected_label = st.radio("", sample_options, index=0)
+            selected_label = st.radio(
+                "Select a sample", sample_options, index=0, label_visibility="collapsed"
+            )
             if selected_label != _NONE_SAMPLE:
                 selected_sample_path = next(
                     p for label, p in sample_files if label == selected_label
@@ -341,6 +343,7 @@ def _render() -> None:
 
 
 # @spec UI-UI-011, UI-UI-012, UI-UI-013, UI-UI-014
+
 def _render_results_section(result: PredictionResult | None) -> None:
     """Render the results panel — predicted label, confidence, markers, download.
 
@@ -395,5 +398,20 @@ def _render_results_section(result: PredictionResult | None) -> None:
         disabled=result is None,
     )
 
+
+import sys as _sys
+import types as _types
+
+# When Streamlit exec's this file directly it is not registered in sys.modules,
+# so `from phenotype_pipeline import ui as _self` inside _render() would trigger
+# a fresh import that re-executes this module and calls _render() a second time,
+# producing duplicate widget IDs. Registering the module here first ensures the
+# self-import returns the cached module without re-executing.
+if "phenotype_pipeline.ui" not in _sys.modules:
+    _stub = _types.ModuleType("phenotype_pipeline.ui")
+    _stub.__dict__.update(globals())
+    _sys.modules["phenotype_pipeline.ui"] = _stub
+
+del _sys, _types
 
 _render()
