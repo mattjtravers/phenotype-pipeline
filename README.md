@@ -20,17 +20,17 @@ The Phenotype Pipeline is an automated machine learning workflow designed to pre
 ┌───────────────────────┐
 │ Feature Engineering   │ ──► Executes median imputation & quality-score filtering
 └───────────┬───────────┘
-            │ (Validated Numpy Matrices / Pydantic Contracts)
+            │ (Feature Matrices → Amazon S3)
             ▼
 ┌───────────────────────┐
 │  SageMaker Training   │ ──► Executes XGBoost training with cross-validation
 └───────────┬───────────┘
-            │ (Model Artifact to Amazon S3)
+            │ (Model Artifact → Amazon S3)
             ▼
 ┌───────────────────────┐
 │  AWS SAM Deployment   │ ──► Configures API Gateway and AWS Lambda environment
 └───────────┬───────────┘
-            │ (Secure REST Endpoint)
+            │ (Public REST Endpoint)
             ▼
  [Streamlit Dashboard]   ──► Renders traits, predictive confidence, and SNP tags
 
@@ -53,9 +53,11 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mattjtravers/phenotype-pipeline)
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in_GitHub_Codespaces-2ea44f?logo=github&logoColor=white)](https://codespaces.new/mattjtravers/phenotype-pipeline)
 
 Click the button above to launch a pre-configured GitHub Codespace. The Streamlit prediction UI will start automatically and open in your browser — no local setup required. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
+
+> **Free tier** — GitHub Codespaces includes a free monthly allowance (120 core-hours for free accounts, 180 for Pro); a short demo session uses well under that.
 
 > **Run locally** — export `PHENO_API_ENDPOINT=https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com` then run `bash bin/05_ui.sh`.
 
