@@ -1,6 +1,6 @@
 # Phenotype Pipeline — Spec-Driven Genomic Machine Learning
 
-## The Pitch
+## Overview
 
 The Phenotype Pipeline is an automated machine learning workflow that predicts observable human traits (e.g., eye color) from raw SNP genomic data while guaranteeing precise confidence scores and marker traceability. It leverages Linked-Intent Development (LID) to collapse the traditional silos between Business, Data Science, and Engineering into a single, traceable "Spec-to-Production" lifecycle.
 
