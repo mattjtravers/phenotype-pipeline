@@ -126,7 +126,7 @@ def test_valid_submission_dispatches_http_post(minimal_vcf_bytes):
     with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response) as mock_post:
         result = dispatch_prediction(
             vcf_bytes=minimal_vcf_bytes,
-            api_endpoint="https://api.example.com/predict",
+            api_endpoint="https://api.example.com",
         )
 
     mock_post.assert_called_once()
@@ -146,7 +146,7 @@ def test_failed_prediction_request_raises_or_returns_error(minimal_vcf_bytes):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
-                api_endpoint="https://api.example.com/predict",
+                api_endpoint="https://api.example.com",
             )
 
 
@@ -160,7 +160,7 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
         with pytest.raises(Exception):
             dispatch_prediction(
                 vcf_bytes=minimal_vcf_bytes,
-                api_endpoint="https://api.example.com/predict",
+                api_endpoint="https://api.example.com",
             )
 
 

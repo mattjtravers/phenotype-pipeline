@@ -4,6 +4,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _set_pheno_api_endpoint(monkeypatch):
+    """Ensure PHENO_API_ENDPOINT is set for all tests so the UI doesn't st.stop()."""
+    monkeypatch.setenv("PHENO_API_ENDPOINT", "https://mock.example.com")
+
 from genomic_ancestry_pipeline.models import (
     CleanSnpDataset,
     CleanVariant,

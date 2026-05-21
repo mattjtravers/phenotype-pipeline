@@ -151,7 +151,8 @@ def dispatch_prediction(
             :meth:`requests.Response.raise_for_status`).
     """
     body = {"vcf": vcf_bytes.decode("utf-8") if isinstance(vcf_bytes, bytes) else vcf_bytes}
-    response = requests.post(api_endpoint, json=body, timeout=60)
+    url = f"{api_endpoint.rstrip('/')}/predict"
+    response = requests.post(url, json=body, timeout=60)
     response.raise_for_status()
     return PredictionResult(**response.json())
 
@@ -232,6 +233,9 @@ infrastructure to manage.
     st.divider()
 
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
+    if not api_endpoint:
+        st.error("PHENO_API_ENDPOINT is not configured — set it as a Streamlit secret or environment variable.")
+        st.stop()
 
     # UI-UI-001: file upload widget restricted to .vcf
     uploaded_file = st.file_uploader("Upload SNP data", type=["vcf"])
