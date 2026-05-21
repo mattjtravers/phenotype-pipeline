@@ -7,9 +7,26 @@ set -euo pipefail
 : "${RUN_ID:?Set RUN_ID before running this script (see 03_train.sh output)}"
 : "${PHENO_S3_BUCKET:?Set PHENO_S3_BUCKET before running this script}"
 
-sam build
+REGION="us-east-1"
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --no-cli-pager)
+ECR_REPO="phenotype-inference"
+IMAGE_REPO="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}"
 
-sam deploy \
+echo "Ensuring ECR repository: ${ECR_REPO}"
+aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$REGION" \
+    --no-cli-pager > /dev/null 2>&1 \
+    || aws ecr create-repository --repository-name "$ECR_REPO" --region "$REGION" \
+        --no-cli-pager > /dev/null
+
+echo "Authenticating Docker to ECR"
+aws ecr get-login-password --region "$REGION" \
+    | docker login --username AWS --password-stdin \
+        "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+
+uv run sam build
+
+uv run sam deploy \
+    --image-repository "$IMAGE_REPO" \
     --parameter-overrides \
         ModelRunId="$RUN_ID" \
         PhenoS3Bucket="$PHENO_S3_BUCKET"

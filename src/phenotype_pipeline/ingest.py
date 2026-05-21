@@ -6,6 +6,8 @@ import csv
 import gzip
 import io
 import logging
+import sys
+from collections.abc import Iterable
 from typing import IO
 
 import boto3
@@ -123,12 +125,15 @@ def run_etl(
 def load_raw_dataset(
     bucket: str,
     local_data_dir: str | None = None,
+    max_variants: int | None = None,
 ) -> RawSnpDataset:
     """Stream the project VCF and metadata from S3 and return a RawSnpDataset.
 
     Args:
         bucket: Project S3 bucket containing the VCF and metadata files.
         local_data_dir: Reserved for future local-path support; currently unused.
+        max_variants: If set, stop parsing after this many variant records. Use
+            to limit memory on instances where the full VCF exceeds available RAM.
 
     Returns:
         RawSnpDataset containing the parsed sample list, variant records, and
@@ -142,7 +147,7 @@ def load_raw_dataset(
 
     try:
         vcf_obj = s3.get_object(Bucket=bucket, Key=_VCF_DEST_KEY)
-        vcf_text = _read_vcf_body(vcf_obj["Body"])
+        raw_bytes = vcf_obj["Body"].read()
     except IngestError:
         raise
     except Exception as e:
@@ -154,7 +159,16 @@ def load_raw_dataset(
         )
         raise IngestError(f"Failed to fetch VCF from s3://{bucket}/{_VCF_DEST_KEY}: {e}") from e
 
-    samples, variants = _parse_vcf(vcf_text)
+    # Stream-decompress to avoid expanding the full VCF (can be 30-60 GB for
+    # a multi-sample chromosome) into RAM before max_variants truncation.
+    if raw_bytes[:2] == b"\x1f\x8b":
+        line_iter: Iterable[str] = (
+            ln.decode("utf-8") for ln in gzip.GzipFile(fileobj=io.BytesIO(raw_bytes))
+        )
+    else:
+        line_iter = iter(raw_bytes.decode("utf-8").splitlines())
+
+    samples, variants = _parse_vcf(line_iter, max_variants=max_variants)
 
     try:
         meta_obj = s3.get_object(Bucket=bucket, Key=_METADATA_DEST_KEY)
@@ -186,13 +200,21 @@ def _read_vcf_body(body: IO[bytes]) -> str:
     return raw.decode("utf-8")
 
 
-def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
-    """Parse VCF text into an ordered sample list and a list of RawVariant objects."""
+def _parse_vcf(
+    lines: Iterable[str],
+    max_variants: int | None = None,
+) -> tuple[list[str], list[RawVariant]]:
+    """Parse VCF lines into an ordered sample list and a list of RawVariant objects.
+
+    Accepts any iterable of strings so callers can pass a streaming line
+    iterator (avoiding full decompression into RAM) or a plain list.
+    """
     samples: list[str] = []
     variants: list[RawVariant] = []
     seen_columns = False
 
-    for lineno, line in enumerate(text.splitlines(), start=1):
+    for lineno, line in enumerate(lines, start=1):
+        line = line.rstrip("\n")
         if not line:
             continue
         if line.startswith("##"):
@@ -224,7 +246,10 @@ def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
         sample_genotypes: dict[str, str | None] = {}
         for sid, gt_field in zip(samples, cols[9:]):
             gt = gt_field.split(":")[0]
-            sample_genotypes[sid] = None if gt in _MISSING_GENOTYPES else gt
+            # sys.intern shares the handful of distinct genotype strings ("0|0",
+            # "0|1", "1|1", etc.) across all variants, cutting value overhead
+            # from O(variants × samples) objects down to O(unique_genotypes).
+            sample_genotypes[sid] = None if gt in _MISSING_GENOTYPES else sys.intern(gt)
         variants.append(
             RawVariant(
                 chrom=chrom,
@@ -234,6 +259,8 @@ def _parse_vcf(text: str) -> tuple[list[str], list[RawVariant]]:
                 genotypes=sample_genotypes,
             )
         )
+        if max_variants is not None and len(variants) >= max_variants:
+            break
 
     if not seen_columns:
         raise IngestError("Malformed VCF: missing #CHROM column header")
@@ -267,6 +294,13 @@ def _parse_metadata(raw: bytes) -> SampleMetadata:
                 population[sid] = pop_val.strip()
             if pheno_col and (pheno_val := row.get(pheno_col)):
                 phenotype_labels[sid] = pheno_val.strip()
+
+    # When the metadata file has no explicit phenotype column (e.g., 1000 Genomes
+    # sample_info which carries population codes but no eye-color labels), fall back
+    # to population as the prediction target. Predicting population from SNPs is a
+    # valid genomics task that makes the demo trainable end-to-end.
+    if not phenotype_labels and population:
+        phenotype_labels = dict(population)
 
     return SampleMetadata(population=population, phenotype_labels=phenotype_labels)
 

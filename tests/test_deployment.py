@@ -67,7 +67,7 @@ def test_s3_paths_follow_defined_structure():
 @pytest.fixture
 def patched_training_env():
     """Patches Estimator + boto3 S3 client so launch_training_job runs without AWS."""
-    with patch("phenotype_pipeline.deployment.Estimator") as mock_estimator_cls, \
+    with patch("sagemaker.estimator.Estimator") as mock_estimator_cls, \
          patch("phenotype_pipeline.deployment.boto3") as mock_boto3:
         instance = mock_estimator_cls.return_value
         instance.latest_training_job = MagicMock()

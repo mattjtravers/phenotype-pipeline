@@ -149,7 +149,11 @@ activemq-data/
 
 # Environments
 .env
+.env.*
 .envrc
+
+# AWS credentials
+.aws/
 .venv
 env/
 venv/

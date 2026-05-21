@@ -5,8 +5,8 @@
 This component owns all AWS infrastructure concerns: S3 bucket structure, SageMaker training job configuration, Lambda inference wrapper, and IAM policies.
 
 The two AWS execution environments have distinct roles:
-- **SageMaker Training Job** — canonical environment for training; runs `pipeline/train.py` in a custom container
-- **Lambda** — inference only; loads the trained model artifact from S3 and serves predictions
+- **SageMaker Training Job** — canonical environment for training; runs `phenotype_pipeline.sagemaker_train` in a custom container built from `Dockerfile.train`
+- **Lambda** — inference only; loads the trained model artifact from S3 and serves predictions; packaged as a container image built from `Dockerfile`
 
 The deployment layer is a thin wrapper. It does not contain ML logic. It adapts the pipeline's interfaces to these two AWS execution environments.
 
@@ -36,21 +36,38 @@ s3://{bucket}/
 
 `run_id` is a timestamp + short UUID (e.g., `20240115-a3f2c1`). This enables multiple model versions to coexist without overwriting.
 
+## Container Images
+
+The pipeline uses two distinct container images — one for SageMaker training, one for Lambda inference. They share Python 3.12 and the same `src/phenotype_pipeline/` package source but have incompatible base images and entry-point contracts.
+
+| Image | Dockerfile | Base image | Entry point | Published to ECR by |
+|---|---|---|---|---|
+| Training | `Dockerfile.train` | `python:3.12-slim` | `python -m phenotype_pipeline.sagemaker_train` | `bin/03_train.sh` (before each training run) |
+| Inference | `Dockerfile` | `public.ecr.aws/lambda/python:3.12` | `phenotype_pipeline.deployment.lambda_handler` | `sam build && sam deploy` (step 4) |
+
+**Training image** (`Dockerfile.train`): installs runtime ML dependencies (XGBoost, scikit-learn, pandas, NumPy, Pydantic, boto3), copies `src/phenotype_pipeline/` to `/opt/ml/code/phenotype_pipeline/`, and sets `PYTHONPATH=/opt/ml/code`. Built and pushed to the ECR repository `phenotype-pipeline-training` by `bin/03_train.sh`; the resulting URI is exported as `PHENO_TRAINING_IMAGE_URI` for the training launcher.
+
+**Inference image** (`Dockerfile`): built from the AWS Lambda Python 3.12 base, which bundles the Lambda Runtime Interface Client as `ENTRYPOINT`. Copies `src/phenotype_pipeline/` to `${LAMBDA_TASK_ROOT}`. Does not include `sagemaker` or `streamlit` (training and UI dependencies not needed at inference time). Published automatically by `sam build && sam deploy`.
+
+The two images are kept separate because Lambda requires the Lambda RIC as `ENTRYPOINT` and SageMaker requires a training script as `CMD`; combining them into one image would require entry-point switching logic and obscure both contracts.
+
 ## SageMaker Training Job
 
-Training runs as a SageMaker Training Job using a custom Docker container (built from the project's `Dockerfile`). The container entry point calls `pipeline/train.py`.
+Training runs as a SageMaker Training Job using the custom training container built from `Dockerfile.train`. The container entry point is `phenotype_pipeline.sagemaker_train` (invoked as `python -m phenotype_pipeline.sagemaker_train`), which reads pipeline parameters from the environment variables injected by the launcher and orchestrates the full training pipeline in sequence: `load_raw_dataset` → `preprocess` → `build_feature_matrix` → `train` → `save_artifact`.
 
 Key configuration:
 - **Instance type**: `ml.m5.2xlarge` (8 vCPU, 32 GB RAM) — sufficient for 1000 Genomes scale
-- **Input channels**: S3 URIs for raw data and (optionally) cached processed data
+- **Input channels**: S3 URIs for raw data (the container reads directly from S3 via boto3; the SageMaker channel is declared but not used for local file access)
 - **Output path**: S3 model artifact path
-- **Environment variables**: pipeline parameters (k-fold k, MAF threshold, N markers, etc.)
+- **Environment variables**: `PHENO_S3_BUCKET`, `MODEL_RUN_ID`, `K_FOLDS`, `MAF_THRESHOLD`, `TOP_N`, `RANDOM_STATE`
 
 SageMaker is used for training only. Inference runs in Lambda (see below).
 
 ### Training Launch
 
-Training jobs are launched programmatically via the **SageMaker Python SDK** (`sagemaker` package), not raw `boto3` and not CloudFormation. A dedicated launcher script `pipeline/launch_training.py` is the single entry point for kicking off a training run.
+Training jobs are launched programmatically via the **SageMaker Python SDK** (`sagemaker` package), not raw `boto3` and not CloudFormation. A dedicated launcher script `src/phenotype_pipeline/launch_training.py` is the single entry point for kicking off a training run.
+
+Before invoking the launcher, `bin/03_train.sh` builds `Dockerfile.train`, pushes the resulting image to the ECR repository `phenotype-pipeline-training` in `us-east-1`, and exports the image URI as `PHENO_TRAINING_IMAGE_URI`. The launcher reads this variable as the container image URI passed to `Estimator`.
 
 The launcher:
 
@@ -58,7 +75,7 @@ The launcher:
 2. Generates `run_id` locally before submitting the job (timestamp + short UUID, per `DEPLOY-BE-002`) and passes it to the container as an environment variable. The launcher owns `run_id` so that the S3 output path is known *before* the job starts — needed for downstream automation and for the launcher's stdout contract.
 3. **Checks for `run_id` collision**: issues `HeadObject` (or `ListObjectsV2` with prefix) against `s3://{PHENO_S3_BUCKET}/models/{run_id}/`. If anything exists at that prefix, the launcher exits non-zero with a clear error rather than risk overwriting a prior run.
 4. Instantiates `sagemaker.estimator.Estimator` configured with:
-   - the custom container image URI (ECR)
+   - the training container image URI from `PHENO_TRAINING_IMAGE_URI` (ECR)
    - `instance_type=<--instance-type flag>` (default `ml.m5.2xlarge`), `instance_count=1`
    - `output_path='s3://{PHENO_S3_BUCKET}/models/'` (SageMaker appends a job-name prefix; the container itself writes the final artifact bundle under `models/{run_id}/`)
    - `environment={...}` carrying both hyperparameters and `MODEL_RUN_ID`
@@ -149,6 +166,7 @@ Two roles:
 - `s3:GetObject` on `s3://1000genomes/*` (public bucket)
 - `s3:PutObject`, `s3:GetObject` on `s3://{bucket}/*`
 - `logs:CreateLogGroup`, `logs:PutLogEvents`
+- ECR pull on `phenotype-pipeline-training` (`ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer`, `ecr:BatchCheckLayerAvailability`) — provided by the `AmazonSageMakerFullAccess` managed policy attached in `bin/01_setup_aws.sh`
 
 **Lambda Execution Role**
 - `s3:GetObject` on `s3://{bucket}/models/*`
@@ -164,6 +182,7 @@ Two roles:
 | Run ID format | Timestamp + UUID | Incrementing integer, git SHA | Timestamps sort naturally; UUIDs prevent collisions; git SHA would require a git context in SageMaker |
 | Inference IaC | AWS SAM | AWS CDK, Terraform, plain boto3 scripts | SAM is the industry-standard declarative tool for the Lambda + API Gateway shape; ships with `sam local invoke` for in-Docker local execution; CDK is heavier for a single function; Terraform would not gain us anything for a one-stack project |
 | Training launch interface | SageMaker Python SDK (`Estimator`) | Raw boto3 `create_training_job`, SAM/CFN `AWS::SageMaker::TrainingJob`, Step Functions | SDK is the canonical AWS-blessed way to launch training; CFN resource is rarely used in practice because training is imperative/one-shot; Step Functions adds orchestration we don't need yet |
+| Container image strategy | Two separate images (`Dockerfile.train` for SageMaker, `Dockerfile` for Lambda) | Single multi-purpose image with entry-point switching | Lambda requires the Lambda RIC as `ENTRYPOINT`; SageMaker requires a training `CMD`. A shared image would need runtime switching logic and would obscure both contracts; separate images keep each boundary explicit and independently deployable |
 | `run_id` ownership | Generated by the launcher before `Estimator.fit` | Generated inside the training container | Launcher needs to know the output S3 path before the job starts (for stdout contract + downstream `sam deploy` binding); container would not be able to publish `run_id` synchronously |
 | Model→Lambda binding | `sam deploy --parameter-overrides MODEL_RUN_ID=<run_id>` after a successful training run | SSM Parameter Store lookup at Lambda cold start, "latest" S3 pointer, dynamic discovery | Explicit binding keeps the CFN stack as the source of truth for what's deployed; avoids hidden runtime coupling between training and inference |
 

@@ -14,7 +14,9 @@ parallel = true
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
-resolve_image_repos = true
+s3_bucket = "phenotype-pipeline-demo"
+s3_prefix = "sam-deploy"
+resolve_image_repos = false
 fail_on_empty_changeset = false
 # Operator must pass --parameter-overrides ModelRunId=<run_id> PhenoS3Bucket=<bucket>
 # (typically piped from launch_training.py stdout).

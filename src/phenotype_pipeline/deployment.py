@@ -32,8 +32,6 @@ from typing import Any
 
 import boto3
 from pydantic import ValidationError
-from sagemaker.estimator import Estimator
-from sagemaker.session import Session as SagemakerSession
 
 from phenotype_pipeline.prediction import load_artifact, predict
 
@@ -207,6 +205,13 @@ def launch_training_job(
     ):
         if kwarg_name in pipeline_params:
             environment[env_name] = str(pipeline_params[kwarg_name])
+
+    # Lazy imports: sagemaker is not installed in the training container, only
+    # on the developer machine / launcher. Importing at call time rather than
+    # module level lets training.py import deployment.get_s3_paths without
+    # pulling in the sagemaker SDK.
+    from sagemaker.estimator import Estimator  # noqa: PLC0415
+    from sagemaker.session import Session as SagemakerSession  # noqa: PLC0415
 
     boto_session = boto3.Session(region_name=REGION)
     sagemaker_session = SagemakerSession(boto_session=boto_session)

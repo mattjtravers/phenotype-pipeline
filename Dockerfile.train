@@ -1,0 +1,27 @@
+# @spec DEPLOY-BE-004, DEPLOY-BE-025
+FROM python:3.12-slim
+
+WORKDIR /opt/ml/code
+
+RUN pip install --no-cache-dir \
+    xgboost==3.2.0 \
+    pydantic==2.13.4 \
+    boto3==1.43.7 \
+    scikit-learn==1.8.0 \
+    numpy==2.4.4 \
+    pandas==3.0.3
+
+ENV PYTHONPATH=/opt/ml/code
+ENV PATH="/opt/ml/code:${PATH}"
+# Cap variant loading to limit memory on ml.m5.2xlarge (32 GB).
+# 50K variants × 2504 samples ≈ 6 GB with interned genotype strings.
+ENV MAX_VARIANTS=50000
+
+COPY src/phenotype_pipeline/ ./phenotype_pipeline/
+
+# SageMaker BYOC calls `docker run <image> train`, overriding CMD.
+# Provide an executable `train` script in PATH so SageMaker finds it.
+RUN printf '#!/bin/bash\nexec python -m phenotype_pipeline.sagemaker_train "$@"\n' \
+    > /opt/ml/code/train && chmod +x /opt/ml/code/train
+
+CMD ["train"]
