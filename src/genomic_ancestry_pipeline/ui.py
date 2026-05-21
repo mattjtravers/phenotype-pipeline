@@ -60,6 +60,36 @@ _GENERIC_ERROR = "Prediction request failed — please try again."
 
 _EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 _NONE_SAMPLE = "None — use uploaded file"
+_GITHUB_EXAMPLES_URL = "https://github.com/mattjtravers/genomic-ancestry-pipeline/blob/main/examples"
+
+_POPULATION_NAMES: dict[str, str] = {
+    "ACB": "African Caribbean in Barbados",
+    "ASW": "African Ancestry in SW USA",
+    "BEB": "Bengali in Bangladesh",
+    "CDX": "Chinese Dai in Xishuangbanna",
+    "CEU": "Northern Europeans from Utah",
+    "CHB": "Han Chinese in Beijing",
+    "CHS": "Southern Han Chinese",
+    "CLM": "Colombian in Medellín",
+    "ESN": "Esan in Nigeria",
+    "FIN": "Finnish in Finland",
+    "GBR": "British in England/Scotland",
+    "GIH": "Gujarati Indian in Houston",
+    "GWD": "Gambian in Western Division",
+    "IBS": "Iberian in Spain",
+    "ITU": "Indian Telugu in the UK",
+    "JPT": "Japanese in Tokyo",
+    "KHV": "Kinh in Ho Chi Minh City",
+    "LWK": "Luhya in Webuye, Kenya",
+    "MSL": "Mende in Sierra Leone",
+    "MXL": "Mexican Ancestry in LA",
+    "PEL": "Peruvian in Lima",
+    "PJL": "Punjabi in Lahore",
+    "PUR": "Puerto Rican in Puerto Rico",
+    "STU": "Sri Lankan Tamil in the UK",
+    "TSI": "Toscani in Italy",
+    "YRI": "Yoruba in Ibadan, Nigeria",
+}
 
 # ── Pure helpers (unit-tested) ─────────────────────────────────────────────────
 
@@ -170,8 +200,12 @@ def sample_label_from_filename(filename: str) -> str:
     Returns:
         Display label, e.g. ``"Blue eyes"``.
     """
-    name = filename.removeprefix("sample_").removesuffix(".vcf")
-    return name.replace("_", " ").capitalize()
+    import re as _re
+    stem = filename.removesuffix(".vcf")
+    m = _re.match(r"test_snp_(\d+)$", stem)
+    if m:
+        return f"Test SNP {m.group(1)}"
+    return stem.removeprefix("sample_").replace("_", " ").capitalize()
 
 
 # @spec UI-UI-016, UI-UI-017
@@ -260,6 +294,12 @@ infrastructure to manage.
                 selected_sample_path = next(
                     p for label, p in sample_files if label == selected_label
                 )
+                github_url = f"{_GITHUB_EXAMPLES_URL}/{selected_sample_path.name}"
+                st.markdown(
+                    f'<a href="{github_url}" target="_blank" style="font-size:0.85em;">'
+                    f"📄 View {selected_sample_path.name} on GitHub ↗</a>",
+                    unsafe_allow_html=True,
+                )
 
     active_input_present = uploaded_file is not None or selected_sample_path is not None
     submitted = st.button("Run Prediction", disabled=not active_input_present)
@@ -323,7 +363,9 @@ def _render_results_section(result: PredictionResult | None) -> None:
         ]
         json_payload = "{}"
     else:
-        st.markdown(f"**Predicted phenotype:** {result.predicted_phenotype}")
+        pop_name = _POPULATION_NAMES.get(result.predicted_phenotype, "")
+        pop_display = f"{result.predicted_phenotype} — {pop_name}" if pop_name else result.predicted_phenotype
+        st.markdown(f"**Predicted ancestry:** {pop_display}")
         st.progress(
             min(max(result.confidence_score, 0.0), 1.0),
             text=f"Confidence: {result.confidence_score * 100:.0f}%",

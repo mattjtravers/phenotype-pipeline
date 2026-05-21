@@ -168,14 +168,15 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
 
 
 # @spec UI-UI-018
-def test_sample_label_strips_prefix_and_extension():
-    """sample_label_from_filename converts 'sample_blue_eyes.vcf' → 'Blue eyes'."""
+def test_sample_label_test_snp_pattern():
+    """sample_label_from_filename converts 'test_snp_1.vcf' → 'Test SNP 1'."""
+    assert sample_label_from_filename("test_snp_1.vcf") == "Test SNP 1"
+    assert sample_label_from_filename("test_snp_12.vcf") == "Test SNP 12"
+
+
+def test_sample_label_fallback_strips_sample_prefix():
+    """sample_label_from_filename falls back to stripping sample_ for other naming patterns."""
     assert sample_label_from_filename("sample_blue_eyes.vcf") == "Blue eyes"
-
-
-def test_sample_label_multi_word():
-    """sample_label_from_filename handles filenames with multiple underscore-separated words."""
-    assert sample_label_from_filename("sample_dark_eyes.vcf") == "Dark eyes"
 
 
 # @spec UI-UI-016, UI-UI-017, UI-UI-018
