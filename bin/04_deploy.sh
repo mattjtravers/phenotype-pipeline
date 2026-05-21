@@ -27,6 +27,7 @@ uv run sam build
 
 uv run sam deploy \
     --image-repository "$IMAGE_REPO" \
+    --no-confirm-changeset \
     --parameter-overrides \
         ModelRunId="$RUN_ID" \
         PhenoS3Bucket="$PHENO_S3_BUCKET"
