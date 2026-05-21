@@ -53,7 +53,7 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-[![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in_GitHub_Codespaces-2ea44f?logo=github&logoColor=white)](https://codespaces.new/mattjtravers/phenotype-pipeline)
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in_GitHub_Codespaces-2ea44f?logo=github&logoColor=white&style=for-the-badge)](https://codespaces.new/mattjtravers/phenotype-pipeline)
 
 Click the button above to launch a pre-configured GitHub Codespace. The Streamlit prediction UI will start automatically and open in your browser — no local setup required. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see a phenotype prediction with confidence score and top contributing genomic markers.
 
