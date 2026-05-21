@@ -42,7 +42,7 @@ The system coordinates data from ingestion to deployment. Each state transition 
 
 ## The Spec-Driven Pattern
 
-This project utilizes **Linked-Intent Development (LID)** to reduce configuration drift, enforce strict boundary runtime validation, and maintain alignment between requirements and implementation.
+This project utilizes [Linked-Intent Development (LID)](https://github.com/jszmajda/lid) to reduce configuration drift, enforce strict boundary runtime validation, and maintain alignment between requirements and implementation.
 
 * **Requirements Traceability via EARS:** System logic is structured around the Easy Approach to Requirements Syntax (EARS) framework. Every engineering decision maps back to a documented product behavior in the specifications directory, allowing verification of system intent through targeted integration testing.
 * **Deterministic Boundary Validation:** Untyped arrays and loose JSON structures are rejected at component entry points. The pipeline relies on Pydantic models to validate genomic features, sample indices, and inference payloads at runtime. Malformed genomic inputs trigger controlled, fast-failing validations before reaching downstream training algorithms or hosting resources.
