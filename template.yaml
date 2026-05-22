@@ -56,7 +56,7 @@ Resources:
     Metadata:
       DockerTag: !Ref ModelRunId
       DockerContext: .
-      Dockerfile: Dockerfile
+      Dockerfile: Dockerfile.predict
 
   # @spec DEPLOY-BE-020
   InferenceLogGroup:

@@ -7,9 +7,11 @@ Streamlit AppTest and are marked with @pytest.mark.integration.
 from __future__ import annotations
 
 import json
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests as req
 
 from pathlib import Path
 
@@ -423,6 +425,109 @@ def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
 
     mock_dispatch.assert_called_once()
     assert mock_dispatch.call_args[1]["vcf_bytes"] == minimal_vcf_bytes
+
+
+# ── Observability / logging ────────────────────────────────────────────────────
+
+
+# @spec UI-UI-023
+@pytest.mark.integration
+def test_configure_logging_called_on_app_load():
+    """configure_logging() is invoked when the UI module script runs.
+
+    Patch at the source module (logging_config) so the from-import inside the
+    AppTest exec picks up the mock rather than the already-bound local name.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    with patch("genomic_ancestry_pipeline.logging_config.configure_logging") as mock_cfg:
+        at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
+        at.run()
+
+    mock_cfg.assert_called_once()
+
+
+# @spec UI-UI-024
+def test_dispatch_prediction_logs_request_and_result(caplog, minimal_vcf_bytes):
+    """dispatch_prediction emits INFO records for the outbound request and the result."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "sample_id": "sample1",
+        "predicted_phenotype": "CEU",
+        "confidence_score": 0.82,
+        "class_probabilities": {"CEU": 0.82},
+        "top_markers": [],
+        "model_artifact_version": "models/20240115-a3f2c1/",
+    }
+
+    with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response):
+        with caplog.at_level(logging.INFO, logger="genomic_ancestry_pipeline.ui"):
+            dispatch_prediction(vcf_bytes=minimal_vcf_bytes, api_endpoint="https://api.example.com")
+
+    messages = [r.message for r in caplog.records]
+    assert any("dispatch_prediction start" in m for m in messages)
+    assert any("dispatch_prediction complete" in m for m in messages)
+    assert any("CEU" in m for m in messages)
+
+
+# @spec UI-UI-025
+@pytest.mark.integration
+def test_http_error_logs_status_and_error_code(caplog, minimal_vcf_bytes):
+    """Lambda HTTP error emits an ERROR log record with HTTP status, error code, and detail.
+
+    AppTest exec's ui.py with __name__="__main__", so the logger is getLogger("__main__").
+    pytest's caplog captures those records — check caplog.records directly.
+    """
+    from streamlit.testing.v1 import AppTest
+
+    fake_response = MagicMock()
+    fake_response.status_code = 503
+    fake_response.json.return_value = {"error": "MODEL_UNAVAILABLE", "detail": "cold start"}
+    http_error = req.exceptions.HTTPError(response=fake_response)
+
+    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", side_effect=http_error):
+        with caplog.at_level(logging.ERROR, logger="__main__"):
+            at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
+            at.run()
+            at.file_uploader[0].upload(
+                filename="sample.vcf",
+                content=minimal_vcf_bytes,
+                mime_type="text/plain",
+            )
+            at.button[0].click().run()
+
+    messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert any("prediction HTTP error" in m for m in messages)
+    assert any("MODEL_UNAVAILABLE" in m for m in messages)
+
+
+# @spec UI-UI-026
+@pytest.mark.integration
+def test_unexpected_exception_logs_with_traceback(caplog, minimal_vcf_bytes):
+    """An unexpected exception during dispatch emits an ERROR record with a traceback.
+
+    AppTest exec's ui.py with __name__="__main__", so records appear under that logger.
+    Checks that exc_info is populated on the record (set by exc_info=True in the handler).
+    """
+    from streamlit.testing.v1 import AppTest
+
+    boom = RuntimeError("unexpected boom")
+
+    with patch("genomic_ancestry_pipeline.ui.dispatch_prediction", side_effect=boom):
+        with caplog.at_level(logging.ERROR, logger="__main__"):
+            at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
+            at.run()
+            at.file_uploader[0].upload(
+                filename="sample.vcf",
+                content=minimal_vcf_bytes,
+                mime_type="text/plain",
+            )
+            at.button[0].click().run()
+
+    error_records = [r for r in caplog.records if r.levelno >= logging.ERROR and "dispatch_prediction failed" in r.getMessage()]
+    assert len(error_records) > 0
+    assert any(r.exc_info is not None for r in error_records)
 
 
 # Phase 4 resolution: upload validation error shown even when sample is also selected

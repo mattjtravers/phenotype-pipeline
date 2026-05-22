@@ -28,6 +28,7 @@ from pathlib import Path
 import requests
 import streamlit as st
 
+from genomic_ancestry_pipeline.logging_config import configure_logging
 from genomic_ancestry_pipeline.models import PredictionResult
 
 logger = logging.getLogger(__name__)
@@ -367,7 +368,7 @@ infrastructure to manage.
                     )
                     st.error(_map_error_response(response_payload))
                 except Exception as e:
-                    logger.error("dispatch_prediction failed [error=%s]", e)
+                    logger.error("dispatch_prediction failed [error=%s]", e, exc_info=True)
                     st.error(_GENERIC_ERROR)
                 if result is not None:
                     logger.info(
@@ -449,4 +450,5 @@ if "genomic_ancestry_pipeline.ui" not in _sys.modules:
 
 del _sys, _types
 
+configure_logging()
 _render()

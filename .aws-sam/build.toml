@@ -7,6 +7,6 @@ functions = ["InferenceFunction"]
 [function_build_definitions.c2e03604-f372-4ae0-b094-fbdb2d650868.metadata]
 DockerTag = "ModelRunId"
 DockerContext = "/workspaces/phenotype-pipeline"
-Dockerfile = "Dockerfile"
+Dockerfile = "Dockerfile.predict"
 
 [layer_build_definitions]
