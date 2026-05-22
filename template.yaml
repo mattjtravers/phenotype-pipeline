@@ -22,7 +22,7 @@ Parameters:
 Resources:
 
   # @spec DEPLOY-BE-007, DEPLOY-BE-008, DEPLOY-BE-010, DEPLOY-BE-012,
-  #       DEPLOY-BE-013, DEPLOY-BE-015
+  #       DEPLOY-BE-015
   InferenceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -47,12 +47,6 @@ Resources:
             Method: POST
             Path: /predict
             PayloadFormatVersion: '2.0'
-        LabelsRoute:
-          Type: HttpApi
-          Properties:
-            Method: GET
-            Path: /labels
-            PayloadFormatVersion: '2.0'
     Metadata:
       DockerTag: !Ref ModelRunId
       DockerContext: .
@@ -67,7 +61,7 @@ Resources:
 
 Outputs:
   ApiEndpoint:
-    Description: HTTP API endpoint URL (POST /predict, GET /labels).
+    Description: HTTP API endpoint URL (POST /predict).
     Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
   FunctionName:
     Description: Inference Lambda function name.

@@ -9,7 +9,7 @@ This module realizes the deployment segment of the arrow of intent:
   reachability, ``run_id`` collision), blocks until terminal status, and
   returns the ``run_id`` on success.
 - :func:`lambda_handler` is the API Gateway HTTP API entry point for
-  ``POST /predict`` and ``GET /labels``. It enforces the error contract
+  ``POST /predict``. It enforces the error contract
   defined in ``docs/llds/06_deployment.md § Error contract``.
 
 See ``docs/llds/06_deployment.md`` for the canonical design and
@@ -400,11 +400,10 @@ def _route(event: dict[str, Any]) -> tuple[str, str]:
 def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
     """AWS Lambda entry point for the inference API.
 
-    Dispatches API Gateway HTTP API v2 events to one of two endpoints:
+    Dispatches API Gateway HTTP API v2 events to the single endpoint:
 
     - ``POST /predict`` — runs inference on a single-sample VCF and returns a
       :class:`PredictionResult` JSON body.
-    - ``GET /labels`` — returns the deployed model's phenotype label strings.
 
     Before dispatch, :func:`_ensure_bundle` confirms the model artifact has
     been loaded and is complete; any failure short-circuits to
@@ -431,16 +430,6 @@ def lambda_handler(event: dict[str, Any], context: object) -> dict[str, Any]:
             return bundle_error
 
         method, path = _route(event)
-
-        if method == "GET" and path == "/labels":
-            label_encoder = _artifact_cache.get("label_encoder") or {}
-            # label_encoder may be either a dict (int→str) or a sortable
-            # collection of strings; both produce the same exposed shape.
-            if isinstance(label_encoder, dict):
-                labels = sorted(label_encoder.values())
-            else:
-                labels = sorted(label_encoder)
-            return _ok_response({"labels": list(labels)})
 
         if method == "POST" and path == "/predict":
             body_raw = event.get("body")

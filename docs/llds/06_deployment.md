@@ -106,11 +106,8 @@ The Lambda is fronted by an **API Gateway HTTP API** (not REST API) — HTTP API
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/predict` | Runs inference on a single-sample VCF; returns a `PredictionResult` JSON body |
-| `GET`  | `/labels`  | Returns the deployed model's phenotype label list as JSON `{"labels": [...]}` |
 
 The `/predict` endpoint accepts a JSON body of shape `{"vcf": "<vcf_string>"}` where `vcf` is the raw VCF content as a UTF-8 string. It passes the pre-cached artifact bundle directly to `predict()` — no S3 read occurs per-request. The `phenotype` field is not part of the request contract; the model determines the ancestral population from the VCF data alone.
-
-The `/labels` endpoint reads `label_encoder.json` from the cached artifact (or loads the artifact if cold). It returns the sorted list of population label strings so API consumers can discover which populations the deployed model recognises without inspecting the artifact directly. The integer keys are an internal training detail and are not exposed.
 
 ### Error contract
 
@@ -126,7 +123,7 @@ The handler fails immediately and loudly on any error. There is no retry, no deg
 | Model inference or SHAP computation raises | `500` | `INFERENCE_FAILED` |
 | Any other unhandled exception | `500` | `INTERNAL_ERROR` |
 
-Model-bundle completeness is checked on the first load (cold start or first `/labels`/`/predict` call): all of `model.json`, `feature_registry.json`, `imputation_medians.json`, `evaluation_report.json`, `label_encoder.json` must be present. If any are missing, the handler raises and every subsequent request in that container lifecycle short-circuits to `503 MODEL_UNAVAILABLE` without re-attempting the load.
+Model-bundle completeness is checked on the first load (cold start or first `/predict` call): all of `model.json`, `feature_registry.json`, `imputation_medians.json`, `evaluation_report.json`, `label_encoder.json` must be present. If any are missing, the handler raises and every subsequent request in that container lifecycle short-circuits to `503 MODEL_UNAVAILABLE` without re-attempting the load.
 
 ### Infrastructure-as-Code (AWS SAM)
 
@@ -143,7 +140,7 @@ Template structure (summary):
 
 - `AWS::Serverless::Function` — `PackageType: Image`, `MemorySize: 3008`, `Timeout: 60`, env vars `PHENO_S3_BUCKET` and `MODEL_RUN_ID` sourced from CloudFormation parameters
 - `AWS::Serverless::HttpApi` (NOT `AWS::Serverless::Api`) — HTTP API is materially cheaper and lower-latency, and we use none of REST API's extra features
-- Two `Events` of type `HttpApi`: `POST /predict` and `GET /labels`
+- One `Event` of type `HttpApi`: `POST /predict`
 - An `AWS::IAM::Role` granting `s3:GetObject` on `s3://{PHENO_S3_BUCKET}/models/*` and CloudWatch Logs write access (matching the existing `DEPLOY-BE-012` policy shape)
 - An `AWS::Logs::LogGroup` for the Lambda with `RetentionInDays: 14` — default ("never expire") is a silent cost trap; 14 days is plenty for a demo's forensic window
 

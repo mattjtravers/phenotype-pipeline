@@ -272,19 +272,6 @@ def test_lambda_accepts_http_api_v2_event():
     assert response["statusCode"] in (200, 400, 500, 503)
 
 
-# @spec DEPLOY-BE-013
-def test_lambda_labels_endpoint_returns_population_strings():
-    event = _http_api_event("GET", "/labels")
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
-        response = lambda_handler(event, context=None)
-
-    assert response.get("statusCode") == 200
-    body = json.loads(response["body"]) if isinstance(response.get("body"), str) else response.get("body")
-    assert "labels" in body
-    assert set(body["labels"]) == {"blue", "brown", "green"}
-
-
 # ── Lambda error contract — DEPLOY-BE-021 / 022 ────────────────────────────────
 
 
@@ -309,7 +296,7 @@ def test_lambda_returns_503_when_artifact_missing(caplog):
 def test_lambda_returns_503_when_bundle_incomplete():
     """Bundle missing one of the 5 required files → 503 MODEL_UNAVAILABLE."""
     incomplete = {"booster": MagicMock()}  # missing label_encoder, feature_registry, etc.
-    event = _http_api_event("GET", "/labels")
+    event = _http_api_event("POST", "/predict", body=json.dumps({}))
     with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=incomplete), \
          patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
         response = lambda_handler(event, context=None)

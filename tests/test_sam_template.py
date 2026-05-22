@@ -92,7 +92,7 @@ def test_template_uses_http_api_not_rest_api(resources):
 
 
 # @spec DEPLOY-BE-010
-def test_template_routes_post_predict_and_get_labels(resources):
+def test_template_routes_post_predict(resources):
     fns = _resources_of_type(resources, "AWS::Serverless::Function")
     routes: set[tuple[str, str]] = set()
     for fn in fns.values():
@@ -105,7 +105,7 @@ def test_template_routes_post_predict_and_get_labels(resources):
             path = props.get("Path") or ""
             routes.add((method, path))
     assert ("POST", "/predict") in routes, f"Expected POST /predict route; got {routes}"
-    assert ("GET", "/labels") in routes, f"Expected GET /labels route; got {routes}"
+    assert ("GET", "/labels") not in routes, f"GET /labels route should be removed; got {routes}"
 
 
 # @spec DEPLOY-BE-015

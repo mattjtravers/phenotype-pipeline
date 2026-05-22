@@ -3,14 +3,12 @@
 Implements the UI segment of the arrow of intent. The module is dual-purpose:
 
 - Importing the module exposes pure helper functions (:func:`validate_vcf_upload`,
-  :func:`count_vcf_samples`, :func:`fetch_phenotype_labels`,
-  :func:`dispatch_prediction`) that can be unit-tested without a running
-  Streamlit server.
+  :func:`count_vcf_samples`, :func:`dispatch_prediction`) that can be
+  unit-tested without a running Streamlit server.
 - Executing the module (``streamlit run ui.py`` or via
   ``streamlit.testing.v1.AppTest.from_file``) renders a single-page demo
-  interface: VCF upload, phenotype dropdown sourced from the Lambda
-  ``/labels`` endpoint, prediction dispatch, and a results panel with the
-  predicted phenotype, confidence, top markers, and JSON download.
+  interface: VCF upload, prediction dispatch, and a results panel with the
+  predicted phenotype, confidence, and top markers.
 
 See ``docs/llds/07_ui.md`` for the canonical design and
 ``docs/specs/07_ui.md`` for the EARS specs realized here.
