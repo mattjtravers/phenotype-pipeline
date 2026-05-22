@@ -246,7 +246,7 @@ def _map_error_response(payload: dict) -> str:
 
 
 # @spec UI-UI-001, UI-UI-008, UI-UI-009, UI-UI-011, UI-UI-012,
-#       UI-UI-013, UI-UI-014, UI-UI-015, UI-UI-016, UI-UI-017, UI-UI-018,
+#       UI-UI-014, UI-UI-015, UI-UI-016, UI-UI-017, UI-UI-018,
 #       UI-UI-019, UI-UI-020, UI-UI-021, UI-UI-022
 def _render() -> None:
     """Render the Streamlit app.
@@ -382,13 +382,13 @@ infrastructure to manage.
     _render_results_section(st.session_state.get("result"))
 
 
-# @spec UI-UI-011, UI-UI-012, UI-UI-013, UI-UI-014
+# @spec UI-UI-011, UI-UI-012, UI-UI-014
 
 def _render_results_section(result: PredictionResult | None) -> None:
-    """Render the results panel — predicted label, confidence, markers, download.
+    """Render the results panel — predicted label, confidence, and markers.
 
-    Rendered unconditionally so that :class:`AppTest` finds the dataframe and
-    download elements on the initial page load (specs UI-UI-012, UI-UI-013).
+    Rendered unconditionally so that :class:`AppTest` finds the dataframe
+    on the initial page load (spec UI-UI-012).
     A placeholder row is shown when no prediction has been made yet.
     """
     st.subheader("Results")
@@ -398,7 +398,6 @@ def _render_results_section(result: PredictionResult | None) -> None:
         marker_rows: list[dict] = [
             {"Rank": "—", "Variant": "—", "Chrom": "—", "Pos": "—", "SHAP": "—"}
         ]
-        json_payload = "{}"
     else:
         pop_name = _POPULATION_NAMES.get(result.predicted_phenotype, "")
         pop_display = f"{result.predicted_phenotype} — {pop_name}" if pop_name else result.predicted_phenotype
@@ -417,7 +416,6 @@ def _render_results_section(result: PredictionResult | None) -> None:
             }
             for m in result.top_markers
         ] or [{"Rank": "—", "Variant": "—", "Chrom": "—", "Pos": "—", "SHAP": "—"}]
-        json_payload = result.model_dump_json()
 
     st.subheader("Top contributing markers")
     st.dataframe(marker_rows)
@@ -425,14 +423,6 @@ def _render_results_section(result: PredictionResult | None) -> None:
     if result and result.top_markers:
         chart_data = {m.variant_id: m.shap_contribution for m in result.top_markers}
         st.bar_chart(chart_data)
-
-    st.download_button(
-        label="Download JSON",
-        data=json_payload,
-        file_name="prediction_result.json",
-        mime="application/json",
-        disabled=result is None,
-    )
 
 
 import sys as _sys

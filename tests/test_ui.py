@@ -277,17 +277,6 @@ def test_ui_shows_marker_table():
     assert len(at.dataframe) > 0
 
 
-# @spec UI-UI-013
-@pytest.mark.integration
-def test_ui_provides_json_download_button():
-    """A download button exports the full PredictionResult as JSON."""
-    from streamlit.testing.v1 import AppTest
-    at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
-    at.run()
-    labels = [getattr(el, "label", "") for el in at.main]
-    assert "Download JSON" in labels
-
-
 # ── Sample input integration tests ────────────────────────────────────────────
 
 
