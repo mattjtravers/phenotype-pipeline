@@ -58,9 +58,9 @@ _ERROR_MESSAGES = {
 }
 _GENERIC_ERROR = "Prediction request failed — please try again."
 
-_EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
+_SAMPLES_DIR = Path(__file__).parent.parent.parent / "samples"
 _NONE_SAMPLE = "None — use uploaded file"
-_GITHUB_EXAMPLES_URL = "https://github.com/mattjtravers/genomic-ancestry-pipeline/blob/main/examples"
+_GITHUB_SAMPLES_URL = "https://github.com/mattjtravers/genomic-ancestry-pipeline/blob/main/samples"
 
 _POPULATION_NAMES: dict[str, str] = {
     "ACB": "African Caribbean in Barbados",
@@ -202,28 +202,28 @@ def sample_label_from_filename(filename: str) -> str:
     """
     import re as _re
     stem = filename.removesuffix(".vcf")
-    m = _re.match(r"test_snp_(\d+)$", stem)
+    m = _re.match(r"sample_snp_(\d+)$", stem)
     if m:
-        return f"Test SNP {m.group(1)}"
+        return f"Sample {m.group(1)}"
     return stem.removeprefix("sample_").replace("_", " ").capitalize()
 
 
 # @spec UI-UI-016, UI-UI-017
-def load_sample_files(examples_dir: Path) -> list[tuple[str, Path]]:
-    """Return labelled sample VCF paths from ``examples_dir``.
+def load_sample_files(samples_dir: Path) -> list[tuple[str, Path]]:
+    """Return labelled sample VCF paths from ``samples_dir``.
 
     Args:
-        examples_dir: Directory to scan for ``.vcf`` files.
+        samples_dir: Directory to scan for ``.vcf`` files.
 
     Returns:
         Sorted list of ``(label, path)`` pairs. Empty list when the directory
         does not exist (UI-UI-017: expander hidden silently).
     """
-    if not examples_dir.is_dir():
+    if not samples_dir.is_dir():
         return []
     return [
         (sample_label_from_filename(p.name), p)
-        for p in sorted(examples_dir.glob("*.vcf"))
+        for p in sorted(samples_dir.glob("sample_snp_[0-9]*.vcf"))
     ]
 
 
@@ -275,8 +275,8 @@ infrastructure to manage.
     uploaded_file = st.file_uploader("Upload SNP data", type=["vcf"])
     st.caption("VCF format · single sample · max 50 MB")
 
-    # UI-UI-016 / UI-UI-017: sample expander (hidden when examples/ is absent)
-    sample_files = _self.load_sample_files(_EXAMPLES_DIR)
+    # UI-UI-016 / UI-UI-017: sample expander (hidden when samples/ is absent)
+    sample_files = _self.load_sample_files(_SAMPLES_DIR)
     selected_sample_path: Path | None = None
     if sample_files:
         # UI-UI-018 / UI-UI-019: expander open by default; radio starts at None
@@ -294,7 +294,7 @@ infrastructure to manage.
                 selected_sample_path = next(
                     p for label, p in sample_files if label == selected_label
                 )
-                github_url = f"{_GITHUB_EXAMPLES_URL}/{selected_sample_path.name}"
+                github_url = f"{_GITHUB_SAMPLES_URL}/{selected_sample_path.name}"
                 st.markdown(
                     f'<a href="{github_url}" target="_blank" style="font-size:0.85em;">'
                     f"📄 View {selected_sample_path.name} on GitHub ↗</a>",

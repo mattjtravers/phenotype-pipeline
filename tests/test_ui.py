@@ -168,10 +168,10 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
 
 
 # @spec UI-UI-018
-def test_sample_label_test_snp_pattern():
-    """sample_label_from_filename converts 'test_snp_1.vcf' → 'Test SNP 1'."""
-    assert sample_label_from_filename("test_snp_1.vcf") == "Test SNP 1"
-    assert sample_label_from_filename("test_snp_12.vcf") == "Test SNP 12"
+def test_sample_label_sample_snp_pattern():
+    """sample_label_from_filename converts 'sample_snp_1.vcf' → 'Sample 1'."""
+    assert sample_label_from_filename("sample_snp_1.vcf") == "Sample 1"
+    assert sample_label_from_filename("sample_snp_12.vcf") == "Sample 12"
 
 
 def test_sample_label_fallback_strips_sample_prefix():
@@ -181,13 +181,13 @@ def test_sample_label_fallback_strips_sample_prefix():
 
 # @spec UI-UI-016, UI-UI-017, UI-UI-018
 def test_load_sample_files_returns_labelled_paths(tmp_path, minimal_vcf_bytes):
-    """load_sample_files returns (label, path) pairs for .vcf files in the directory."""
-    (tmp_path / "sample_blue_eyes.vcf").write_bytes(minimal_vcf_bytes)
-    (tmp_path / "sample_brown_eyes.vcf").write_bytes(minimal_vcf_bytes)
+    """load_sample_files returns (label, path) pairs for sample_snp_N.vcf files."""
+    (tmp_path / "sample_snp_1.vcf").write_bytes(minimal_vcf_bytes)
+    (tmp_path / "sample_snp_2.vcf").write_bytes(minimal_vcf_bytes)
     result = load_sample_files(tmp_path)
     labels = [label for label, _ in result]
-    assert "Blue eyes" in labels
-    assert "Brown eyes" in labels
+    assert "Sample 1" in labels
+    assert "Sample 2" in labels
     assert all(isinstance(p, Path) for _, p in result)
 
 
@@ -291,7 +291,7 @@ def test_ui_provides_json_download_button():
 
 # @spec UI-UI-016
 @pytest.mark.integration
-def test_sample_expander_visible_when_examples_present(minimal_vcf_bytes, tmp_path):
+def test_sample_expander_visible_when_samples_present(minimal_vcf_bytes, tmp_path):
     """The 'Try a sample' expander is rendered when sample files are available."""
     from streamlit.testing.v1 import AppTest
 
