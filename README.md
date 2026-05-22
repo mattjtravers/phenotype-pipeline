@@ -53,9 +53,7 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-<a href="https://genomic-ancestry-pipeline.streamlit.app"><img src="assets/open-demo-button.svg" alt="Open Demo App"/></a>
-
-**[genomic-ancestry-pipeline.streamlit.app](https://genomic-ancestry-pipeline.streamlit.app)**
+<a href="https://genomic-ancestry-pipeline.streamlit.app"><img src="assets/open-demo-button.svg" alt="Open Demo Dashboard"/></a>
 
 Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
 

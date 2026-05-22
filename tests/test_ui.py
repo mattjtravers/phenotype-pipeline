@@ -282,8 +282,8 @@ def test_ui_provides_json_download_button():
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file("src/genomic_ancestry_pipeline/ui.py")
     at.run()
-    download_buttons = [b for b in at.button if "download" in str(b).lower()]
-    assert len(download_buttons) > 0
+    labels = [getattr(el, "label", "") for el in at.main]
+    assert "Download JSON" in labels
 
 
 # ── Sample input integration tests ────────────────────────────────────────────

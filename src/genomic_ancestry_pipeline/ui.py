@@ -183,9 +183,15 @@ def dispatch_prediction(
     """
     body = {"vcf": vcf_bytes.decode("utf-8") if isinstance(vcf_bytes, bytes) else vcf_bytes}
     url = f"{api_endpoint.rstrip('/')}/predict"
+    logger.info("dispatch_prediction start [url=%s vcf_bytes=%d]", url, len(vcf_bytes))
     response = requests.post(url, json=body, timeout=60)
     response.raise_for_status()
-    return PredictionResult(**response.json())
+    result = PredictionResult(**response.json())
+    logger.info(
+        "dispatch_prediction complete [phenotype=%s confidence=%.3f]",
+        result.predicted_phenotype, result.confidence_score,
+    )
+    return result
 
 
 # @spec UI-UI-018
@@ -272,6 +278,7 @@ infrastructure to manage.
 
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
     if not api_endpoint:
+        logger.error("UI startup failed: PHENO_API_ENDPOINT not set")
         st.error("PHENO_API_ENDPOINT is not configured — set it as a Streamlit secret or environment variable.")
         st.stop()
 
@@ -318,12 +325,25 @@ infrastructure to manage.
                 size_bytes=len(file_bytes),
             )
             if errors:
+                logger.warning(
+                    "upload validation rejected [filename=%s errors=%s]",
+                    uploaded_file.name, errors,
+                )
                 for err in errors:
                     st.error(err)
                 file_bytes = None
+            else:
+                logger.info(
+                    "prediction request [input=upload filename=%s size_bytes=%d]",
+                    uploaded_file.name, len(file_bytes),
+                )
         else:
             # Path 1b: sample selected — bypass validation (UI-UI-022)
             file_bytes = selected_sample_path.read_bytes()  # type: ignore[union-attr]
+            logger.info(
+                "prediction request [input=sample filename=%s size_bytes=%d]",
+                selected_sample_path.name, len(file_bytes),  # type: ignore[union-attr]
+            )
 
         if file_bytes is not None:
             with st.spinner("Running prediction..."):
@@ -339,11 +359,23 @@ infrastructure to manage.
                         response_payload = e.response.json() if e.response is not None else {}
                     except ValueError:
                         response_payload = {}
+                    logger.error(
+                        "prediction HTTP error [status=%s error_code=%s detail=%s]",
+                        getattr(e.response, "status_code", "?"),
+                        response_payload.get("error", "unknown"),
+                        response_payload.get("detail", ""),
+                    )
                     st.error(_map_error_response(response_payload))
                 except Exception as e:
                     logger.error("dispatch_prediction failed [error=%s]", e)
                     st.error(_GENERIC_ERROR)
                 if result is not None:
+                    logger.info(
+                        "prediction shown [phenotype=%s confidence=%.3f markers=%d]",
+                        result.predicted_phenotype,
+                        result.confidence_score,
+                        len(result.top_markers),
+                    )
                     st.session_state["result"] = result
 
     _render_results_section(st.session_state.get("result"))
@@ -393,14 +425,8 @@ def _render_results_section(result: PredictionResult | None) -> None:
         chart_data = {m.variant_id: m.shap_contribution for m in result.top_markers}
         st.bar_chart(chart_data)
 
-    # AppTest's `at.button` accessor (used by test_ui_provides_json_download_button)
-    # captures st.button elements only — st.download_button surfaces under
-    # at.download_button. The regular button below provides a label-discoverable
-    # element for the test; st.download_button provides the actual download
-    # action when the user clicks it.
-    st.button("Download JSON", disabled=result is None, key="_download_alias")
     st.download_button(
-        label="Save prediction as JSON",
+        label="Download JSON",
         data=json_payload,
         file_name="prediction_result.json",
         mime="application/json",
