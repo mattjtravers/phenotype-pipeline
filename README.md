@@ -53,9 +53,9 @@ This project utilizes [Linked-Intent Development (LID)](https://github.com/jszma
 
 ## Quick Start
 
-<a href="https://genomic-ancestry-pipeline.streamlit.app" target="_blank"><img src="assets/open-demo-button.svg" alt="Open Demo App"/></a>
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://genomic-ancestry-pipeline.streamlit.app)
 
-Click the button above to open the live demo. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
+Click the badge above or open **[genomic-ancestry-pipeline.streamlit.app](https://genomic-ancestry-pipeline.streamlit.app)** directly. Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
 
 > **Run locally** — export `PHENO_API_ENDPOINT=https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com` then run `bash bin/05_ui.sh`.
 

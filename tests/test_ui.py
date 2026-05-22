@@ -169,9 +169,9 @@ def test_non_200_response_raises_or_returns_error(minimal_vcf_bytes):
 
 # @spec UI-UI-018
 def test_sample_label_sample_snp_pattern():
-    """sample_label_from_filename converts 'sample_snp_1.vcf' → 'Sample 1'."""
-    assert sample_label_from_filename("sample_snp_1.vcf") == "Sample 1"
-    assert sample_label_from_filename("sample_snp_12.vcf") == "Sample 12"
+    """sample_label_from_filename converts 'sample_snp_1.vcf' → 'Sample SNP 1'."""
+    assert sample_label_from_filename("sample_snp_1.vcf") == "Sample SNP 1"
+    assert sample_label_from_filename("sample_snp_12.vcf") == "Sample SNP 12"
 
 
 def test_sample_label_fallback_strips_sample_prefix():
@@ -186,8 +186,8 @@ def test_load_sample_files_returns_labelled_paths(tmp_path, minimal_vcf_bytes):
     (tmp_path / "sample_snp_2.vcf").write_bytes(minimal_vcf_bytes)
     result = load_sample_files(tmp_path)
     labels = [label for label, _ in result]
-    assert "Sample 1" in labels
-    assert "Sample 2" in labels
+    assert "Sample SNP 1" in labels
+    assert "Sample SNP 2" in labels
     assert all(isinstance(p, Path) for _, p in result)
 
 
