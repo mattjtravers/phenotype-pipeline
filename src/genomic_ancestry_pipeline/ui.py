@@ -275,12 +275,6 @@ infrastructure to manage.
         st.error("PHENO_API_ENDPOINT is not configured — set it as a Streamlit secret or environment variable.")
         st.stop()
 
-    # Suppress the native Streamlit "Limit 50MB per file • VCF" text inside the uploader
-    # so our caption below is the sole file-constraint hint shown to the user.
-    st.markdown(
-        "<style>[data-testid='stFileUploaderDropzone'] small { display: none; }</style>",
-        unsafe_allow_html=True,
-    )
     # UI-UI-001: file upload widget restricted to .vcf
     uploaded_file = st.file_uploader("Upload SNP data", type=["vcf"])
     st.caption("VCF format · single sample · max 50 MB")
