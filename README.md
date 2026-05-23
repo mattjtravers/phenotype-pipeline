@@ -1,6 +1,6 @@
 # Genomic Ancestry Pipeline — Spec-Driven Machine Learning
 
-![CI Status](https://github.com/mattjtravers/genomic-ancestry-pipeline/actions/workflows/ci.yml/badge.svg)
+![CI Status](https://github.com/mattjtravers/genomic-ancestry-pipeline/actions/workflows/ci.yaml/badge.svg?branch=main)
 
 ## Overview
 
