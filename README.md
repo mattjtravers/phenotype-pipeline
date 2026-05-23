@@ -1,7 +1,5 @@
 # Genomic Ancestry Pipeline — Spec-Driven Machine Learning
 
-![CI Status](https://github.com/mattjtravers/genomic-ancestry-pipeline/actions/workflows/ci.yaml/badge.svg?branch=main)
-
 ## Overview
 
 The Genomic Ancestry Pipeline is an automated machine learning workflow that predicts ancestral population from raw single-nucleotide polymorphism (SNP) genomic data. It establishes an end-to-end pipeline that translates structured biological requirements into a reproducible model training and serverless inference architecture on AWS.
@@ -59,4 +57,10 @@ The system coordinates data from ingestion to deployment. Each state transition 
 * **Automated Cloud Training Workflows:** Coordinates data handoffs from local environments to AWS SageMaker for structured XGBoost training, utilizing Amazon S3 as a secure feature and model artifact store.
 * **Enterprise Observability & Logging:** Integrates structured logging directly into the Python application runtime, enabling native AWS CloudWatch monitoring and alerting without custom parsing overhead.
 
+---
 
+## Build & Health Status
+
+The pipeline's integrity and test suites are automatically verified on every commit:
+
+![CI Status](https://github.com/mattjtravers/genomic-ancestry-pipeline/actions/workflows/ci.yaml/badge.svg?branch=main)
