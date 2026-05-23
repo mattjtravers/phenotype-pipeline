@@ -6,6 +6,16 @@ The Genomic Ancestry Pipeline is an automated machine learning workflow that pre
 
 ---
 
+## Live Application Dashboard
+
+<a href="https://genomic-ancestry-pipeline.streamlit.app"><img src="assets/open-demo-button.svg" alt="Open Demo Dashboard"/></a>
+
+> **Note on Hosting Site:** If the application dashboard is asleep, click the presented button to wake it up. Please allow 30–60 seconds for the container to spin up.
+
+Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
+
+---
+
 ## Architectural Blueprint
 
 ```text
@@ -47,13 +57,4 @@ The system coordinates data from ingestion to deployment. Each state transition 
 * **Automated Cloud Training Workflows:** Coordinates data handoffs from local environments to AWS SageMaker for structured XGBoost training, utilizing Amazon S3 as a secure feature and model artifact store.
 * **Enterprise Observability & Logging:** Integrates structured logging directly into the Python application runtime, enabling native AWS CloudWatch monitoring and alerting without custom parsing overhead.
 
----
-
-## Quick Start
-
-<a href="https://genomic-ancestry-pipeline.streamlit.app"><img src="assets/open-demo-button.svg" alt="Open Demo Dashboard"/></a>
-
-Upload a VCF file (or pick one of the bundled samples) and click **Run Prediction** to see the predicted ancestral population with a confidence score and top contributing genomic markers.
-
-> **Run locally** — export `PHENO_API_ENDPOINT=https://zynpjy3gyk.execute-api.us-east-1.amazonaws.com` then run `bash bin/05_ui.sh`.
 
