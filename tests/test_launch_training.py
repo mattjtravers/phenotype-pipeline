@@ -21,7 +21,8 @@ def test_cli_help_lists_expected_flags(capsys):
         launch_training.main(["--help"])
     assert exc.value.code == 0
     out = capsys.readouterr().out
-    for flag in ("--bucket", "--k-folds", "--maf-threshold", "--top-n", "--random-state", "--instance-type"):
+    for flag in ("--bucket", "--k-folds", "--maf-threshold", "--top-n", "--random-state",
+                 "--instance-type"):
         assert flag in out, f"CLI --help missing flag {flag}"
 
 
@@ -79,7 +80,9 @@ def test_cli_exits_nonzero_on_training_failure(capsys):
         exit_code = launch_training.main(["--bucket", "my-bucket"])
     assert exit_code != 0
     out = capsys.readouterr().out.strip()
-    assert out == "", "On failure, stdout must NOT contain a run_id (would mislead sam deploy piping)"
+    assert out == "", (
+        "On failure, stdout must NOT contain a run_id (would mislead sam deploy piping)"
+    )
 
 
 # @spec DEPLOY-BE-017

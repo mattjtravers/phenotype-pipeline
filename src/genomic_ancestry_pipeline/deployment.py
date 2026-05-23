@@ -138,7 +138,8 @@ def launch_training_job(
     The job is launched synchronously (``wait=True``). On terminal status,
     the function inspects ``TrainingJobStatus`` and raises ``RuntimeError``
     for anything other than ``Completed``. This makes the function safe to
-    use in the operator pattern ``sam deploy --parameter-overrides MODEL_RUN_ID=$(launch_training.py ...)``:
+    use in the operator pattern
+    ``sam deploy --parameter-overrides MODEL_RUN_ID=$(launch_training.py ...)``:
     the ``run_id`` only reaches stdout on a confirmed-good model.
 
     Args:

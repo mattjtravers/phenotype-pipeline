@@ -1,5 +1,7 @@
 # Genomic Ancestry Pipeline — Spec-Driven Machine Learning
 
+![CI Status](https://github.com/mattjtravers/genomic-ancestry-pipeline/actions/workflows/ci.yml/badge.svg)
+
 ## Overview
 
 The Genomic Ancestry Pipeline is an automated machine learning workflow that predicts ancestral population from raw single-nucleotide polymorphism (SNP) genomic data. It establishes an end-to-end pipeline that translates structured biological requirements into a reproducible model training and serverless inference architecture on AWS.

@@ -3,11 +3,16 @@ from __future__ import annotations
 
 import gzip
 import io
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import pytest
 
-from genomic_ancestry_pipeline.ingest import IngestError, is_biallelic_snp, load_raw_dataset, run_etl
+from genomic_ancestry_pipeline.ingest import (
+    IngestError,
+    is_biallelic_snp,
+    load_raw_dataset,
+    run_etl,
+)
 from genomic_ancestry_pipeline.models import RawSnpDataset
 
 # ── minimal VCF fragments used across tests ────────────────────────────────────

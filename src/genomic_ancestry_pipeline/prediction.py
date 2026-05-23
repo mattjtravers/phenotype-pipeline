@@ -259,7 +259,9 @@ def load_artifact(bucket: str, run_id: str) -> dict:
         SHAP via ``predict(..., pred_contribs=True)`` requires routing through the
         underlying Booster (deferred — see ``docs/llds/05_prediction.md``).
     """
-    prefix = run_id if run_id.startswith("models/") and run_id.endswith("/") else f"models/{run_id}/"
+    prefix = (
+        run_id if run_id.startswith("models/") and run_id.endswith("/") else f"models/{run_id}/"
+    )
     logger.info("load_artifact start [bucket=%s prefix=%s]", bucket, prefix)
 
     s3 = boto3.client("s3")

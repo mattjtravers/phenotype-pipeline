@@ -186,7 +186,8 @@ def _impute_and_encode(
     all_samples: list[str],
     train_samples: list[str],
 ) -> tuple[list[CleanVariant], dict[str, float]]:
-    """Compute training-split medians, impute missing values, and encode all samples to dosage ints."""
+    """Compute training-split medians, impute missing values, and encode all samples to dosage ints.
+    """
     clean_variants: list[CleanVariant] = []
     imputation_medians: dict[str, float] = {}
 

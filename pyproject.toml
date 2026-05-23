@@ -20,6 +20,7 @@ dev = [
     "moto[s3,sagemaker]==5.2.1",
     "aws-sam-cli==1.148.0",
     "pyyaml==6.0.3",
+    "ruff==0.15.14",
 ]
 
 [build-system]

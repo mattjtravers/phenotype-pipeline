@@ -23,7 +23,6 @@ from genomic_ancestry_pipeline.deployment import (
     launch_training_job,
 )
 
-
 # ── S3 bucket configuration ────────────────────────────────────────────────────
 
 
@@ -85,7 +84,9 @@ def patched_training_env():
 def test_launch_training_job_uses_sagemaker_sdk_estimator(patched_training_env):
     mock_estimator_cls, _ = patched_training_env
     launch_training_job(bucket="my-bucket", run_id="20240115-a3f2c1")
-    assert mock_estimator_cls.called, "launch_training_job must instantiate sagemaker.estimator.Estimator"
+    assert mock_estimator_cls.called, (
+        "launch_training_job must instantiate sagemaker.estimator.Estimator"
+    )
     assert mock_estimator_cls.return_value.fit.called, "Estimator.fit must be called"
 
 
@@ -159,7 +160,9 @@ def test_training_job_raises_on_failed_training_status(patched_training_env):
 # @spec DEPLOY-BE-017
 def test_training_job_fails_fast_on_missing_credentials(patched_training_env):
     _, mock_boto3 = patched_training_env
-    mock_boto3.client.return_value.head_bucket.side_effect = botocore.exceptions.NoCredentialsError()
+    mock_boto3.client.return_value.head_bucket.side_effect = (
+        botocore.exceptions.NoCredentialsError()
+    )
     with pytest.raises((botocore.exceptions.NoCredentialsError, RuntimeError)):
         launch_training_job(bucket="my-bucket", run_id="20240115-a3f2c1")
 
@@ -264,9 +267,12 @@ def test_lambda_accepts_http_api_v2_event():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", }),
     )
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict", return_value=MagicMock(model_dump=lambda: {})), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    predict_return = MagicMock(model_dump=lambda: {})
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict", return_value=predict_return),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert "statusCode" in response
     assert response["statusCode"] in (200, 400, 500, 503)
@@ -276,7 +282,8 @@ def test_lambda_accepts_http_api_v2_event():
 
 
 def _body(response: dict) -> dict:
-    return json.loads(response["body"]) if isinstance(response.get("body"), str) else response.get("body")
+    body = response.get("body")
+    return json.loads(body) if isinstance(body, str) else body
 
 
 # @spec DEPLOY-BE-021
@@ -321,7 +328,9 @@ def test_lambda_short_circuits_subsequent_requests_after_failed_load():
         r3 = lambda_handler(event, context=None)
 
     assert r1["statusCode"] == r2["statusCode"] == r3["statusCode"] == 503
-    assert len(load_calls) == 1, "Failed load must not be re-attempted within the same container lifecycle"
+    assert len(load_calls) == 1, (
+        "Failed load must not be re-attempted within the same container lifecycle"
+    )
 
 
 # @spec DEPLOY-BE-027
@@ -331,10 +340,12 @@ def test_lambda_predict_accepts_vcf_only_body():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n"}),
     )
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict",
-               return_value=MagicMock(model_dump=lambda: {})), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    predict_return = MagicMock(model_dump=lambda: {})
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict", return_value=predict_return),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 200
 
@@ -346,10 +357,12 @@ def test_lambda_predict_ignores_phenotype_if_sent():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", "phenotype": "should_be_ignored"}),
     )
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict",
-               return_value=MagicMock(model_dump=lambda: {})), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    predict_return = MagicMock(model_dump=lambda: {})
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict", return_value=predict_return),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 200
 
@@ -357,8 +370,10 @@ def test_lambda_predict_ignores_phenotype_if_sent():
 # @spec DEPLOY-BE-022
 def test_lambda_returns_400_invalid_input_for_malformed_body():
     event = _http_api_event("POST", "/predict", body="not json {{{{")
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 400
     assert _body(response).get("error") == "INVALID_INPUT"
@@ -371,10 +386,12 @@ def test_lambda_returns_400_invalid_vcf_for_multisample():
         "POST", "/predict",
         body=json.dumps({"vcf": "multi-sample-vcf-content", }),
     )
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict",
-               side_effect=ValueError("VCF contains more than one sample")), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict",
+              side_effect=ValueError("VCF contains more than one sample")),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 400
     assert _body(response).get("error") == "INVALID_VCF"
@@ -389,9 +406,11 @@ def test_lambda_returns_500_inference_failed_on_pydantic_validation():
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", }),
     )
     fake_err = ValidationError.from_exception_data("PredictionResult", line_errors=[])
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict", side_effect=fake_err), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict", side_effect=fake_err),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 500
     assert _body(response).get("error") == "INFERENCE_FAILED"
@@ -403,10 +422,12 @@ def test_lambda_returns_500_inference_failed_when_predict_raises():
         "POST", "/predict",
         body=json.dumps({"vcf": "##fileformat=VCFv4.1\n", }),
     )
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch("genomic_ancestry_pipeline.deployment.predict",
-               side_effect=RuntimeError("SHAP exploded")), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True):
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch("genomic_ancestry_pipeline.deployment.predict",
+              side_effect=RuntimeError("SHAP exploded")),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+    ):
         response = lambda_handler(event, context=None)
     assert response["statusCode"] == 500
     assert _body(response).get("error") == "INFERENCE_FAILED"
@@ -434,12 +455,16 @@ def test_lambda_returns_well_formed_error_when_load_raises_unexpected_exception(
 
 # @spec DEPLOY-BE-022
 def test_lambda_error_response_format_includes_code_detail_and_logs_request_id(caplog):
-    """Every error response is {"error": code, "detail": msg} and logger.error carries code + request id."""
+    """Every error response is {"error": code, "detail": msg};
+    logger.error carries the error code and AWS request id.
+    """
     event = _http_api_event("POST", "/predict", body="not json {{{{")
     event["requestContext"]["requestId"] = "req-xyz-789"
-    with patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()), \
-         patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True), \
-         caplog.at_level(logging.ERROR, logger="genomic_ancestry_pipeline.deployment"):
+    with (
+        patch("genomic_ancestry_pipeline.deployment.load_artifact", return_value=_valid_artifact()),
+        patch.dict("genomic_ancestry_pipeline.deployment._artifact_cache", clear=True),
+        caplog.at_level(logging.ERROR, logger="genomic_ancestry_pipeline.deployment"),
+    ):
         response = lambda_handler(event, context=None)
 
     body = _body(response)

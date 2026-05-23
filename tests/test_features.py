@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from genomic_ancestry_pipeline.features import build_feature_matrix
 from genomic_ancestry_pipeline.models import (
@@ -11,7 +10,6 @@ from genomic_ancestry_pipeline.models import (
     FeatureMatrix,
     SampleMetadata,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +20,10 @@ def _build_dataset_with_variants(
 ) -> CleanSnpDataset:
     """Creates a minimal CleanSnpDataset with the supplied per-variant genotypes."""
     samples = [f"s{i:02d}" for i in range(1, 11)]
-    labels = {s: ("blue" if i < 5 else ("brown" if i < 9 else "green")) for i, s in enumerate(samples, 1)}
+    labels = {
+        s: ("blue" if i < 5 else ("brown" if i < 9 else "green"))
+        for i, s in enumerate(samples, 1)
+    }
     meta = SampleMetadata(population={s: "EUR" for s in samples}, phenotype_labels=labels)
     splits = {s: ("test" if s in {"s09", "s10"} else "train") for s in samples}
 

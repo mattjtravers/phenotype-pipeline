@@ -49,7 +49,8 @@ def build_feature_matrix(
         genomic coordinates.
     """
     logger.info(
-        "build_feature_matrix start [n_samples=%d n_variants=%d maf_threshold=%.4f association_filter=%s]",
+        "build_feature_matrix start"
+        " [n_samples=%d n_variants=%d maf_threshold=%.4f association_filter=%s]",
         len(dataset.samples), len(dataset.variants), maf_threshold, association_filter,
     )
     samples = list(dataset.samples)

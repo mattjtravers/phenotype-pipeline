@@ -278,7 +278,10 @@ infrastructure to manage.
     api_endpoint = os.environ.get("PHENO_API_ENDPOINT", "")
     if not api_endpoint:
         logger.error("UI startup failed: PHENO_API_ENDPOINT not set")
-        st.error("PHENO_API_ENDPOINT is not configured — set it as a Streamlit secret or environment variable.")
+        st.error(
+            "PHENO_API_ENDPOINT is not configured"
+            " — set it as a Streamlit secret or environment variable."
+        )
         st.stop()
 
     # UI-UI-001: file upload widget restricted to .vcf
@@ -398,7 +401,9 @@ def _render_results_section(result: PredictionResult | None) -> None:
         ]
     else:
         pop_name = _POPULATION_NAMES.get(result.predicted_phenotype, "")
-        pop_display = f"{result.predicted_phenotype} — {pop_name}" if pop_name else result.predicted_phenotype
+        pop_display = (
+            f"{result.predicted_phenotype} — {pop_name}" if pop_name else result.predicted_phenotype
+        )
         st.markdown(f"**Predicted ancestry:** {pop_display}")
         st.progress(
             min(max(result.confidence_score, 0.0), 1.0),
@@ -423,8 +428,8 @@ def _render_results_section(result: PredictionResult | None) -> None:
         st.bar_chart(chart_data)
 
 
-import sys as _sys
-import types as _types
+import sys as _sys  # noqa: E402
+import types as _types  # noqa: E402
 
 # When Streamlit exec's this file directly it is not registered in sys.modules,
 # so `from genomic_ancestry_pipeline import ui as _self` inside _render() would trigger

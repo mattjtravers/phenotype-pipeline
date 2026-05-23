@@ -53,9 +53,10 @@ def _resources_of_type(resources: dict, type_name: str) -> dict:
 
 # @spec DEPLOY-BE-014
 def test_template_parses_as_sam_transform(template):
-    assert template.get("Transform") in ("AWS::Serverless-2016-10-31", ["AWS::Serverless-2016-10-31"]), (
-        "template.yaml must declare the AWS::Serverless transform"
-    )
+    assert template.get("Transform") in (
+        "AWS::Serverless-2016-10-31",
+        ["AWS::Serverless-2016-10-31"],
+    ), "template.yaml must declare the AWS::Serverless transform"
 
 
 # @spec DEPLOY-BE-014
@@ -84,10 +85,12 @@ def test_template_uses_http_api_not_rest_api(resources):
                 has_inline_http_events = True
 
     assert has_explicit_http or has_inline_http_events, (
-        "template.yaml must front the inference Lambda with an HTTP API (AWS::Serverless::HttpApi or inline HttpApi events)"
+        "template.yaml must front the inference Lambda with an HTTP API"
+        " (AWS::Serverless::HttpApi or inline HttpApi events)"
     )
     assert not rest, (
-        "template.yaml must NOT use AWS::Serverless::Api (REST API); DEPLOY-BE-010 mandates HTTP API"
+        "template.yaml must NOT use AWS::Serverless::Api (REST API);"
+        " DEPLOY-BE-010 mandates HTTP API"
     )
 
 

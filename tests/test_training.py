@@ -9,11 +9,9 @@ import json
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
-from genomic_ancestry_pipeline.models import EvaluationReport, FeatureRegistry
+from genomic_ancestry_pipeline.models import EvaluationReport
 from genomic_ancestry_pipeline.training import save_artifact, train
-
 
 # ── Training protocol ──────────────────────────────────────────────────────────
 
@@ -127,9 +125,8 @@ def test_aggregate_metrics_contain_macro_f1_mean_and_std(feature_matrix):
 
 # @spec TRAIN-PROC-007, TRAIN-PROC-008
 def test_test_set_evaluated_once_after_final_training(feature_matrix):
-    """Test split is evaluated exactly once, after final model retraining, and stored in report.test_set."""
+    """Test split is evaluated exactly once after final retraining, stored in report.test_set."""
     test_indices = [i for i, s in enumerate(feature_matrix.splits) if s == "test"]
-    X_test = feature_matrix.X[test_indices]
 
     with patch("genomic_ancestry_pipeline.training.xgb") as mock_xgb:
         mock_clf = MagicMock()
@@ -160,7 +157,7 @@ def test_test_set_evaluated_once_after_final_training(feature_matrix):
 def test_save_artifact_writes_required_files_to_s3(feature_registry):
     """save_artifact puts model.json, feature_registry.json, imputation_medians.json,
     evaluation_report.json, and label_encoder.json to s3://{bucket}/models/{run_id}/."""
-    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],
@@ -192,7 +189,7 @@ def test_save_artifact_writes_required_files_to_s3(feature_registry):
 # @spec TRAIN-DATA-002
 def test_label_encoder_maps_int_indices_to_phenotype_strings(feature_registry):
     """label_encoder.json contains integer keys mapping to human-readable label strings."""
-    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],
@@ -227,7 +224,7 @@ def test_label_encoder_maps_int_indices_to_phenotype_strings(feature_registry):
 # @spec TRAIN-DATA-003
 def test_artifact_bundle_is_self_contained(feature_registry):
     """The artifact bundle includes everything needed for inference without re-running training."""
-    from genomic_ancestry_pipeline.models import AggregateMetrics, EvaluationReport, TestSetMetrics
+    from genomic_ancestry_pipeline.models import AggregateMetrics, TestSetMetrics
 
     report = EvaluationReport(
         folds=[],

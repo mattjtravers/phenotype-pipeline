@@ -9,7 +9,6 @@ import pytest
 from genomic_ancestry_pipeline.models import PredictionResult
 from genomic_ancestry_pipeline.prediction import PredictionError, predict
 
-
 # ── Shared artifact fixture ────────────────────────────────────────────────────
 
 
@@ -53,7 +52,9 @@ def test_predict_uses_caller_supplied_artifact(minimal_vcf_bytes, feature_regist
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
     with patch("genomic_ancestry_pipeline.prediction.load_artifact") as mock_load:
-        result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
+        result = predict(
+            minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/"
+        )
         mock_load.assert_not_called()
 
     assert isinstance(result, PredictionResult)
@@ -96,8 +97,12 @@ def test_inference_uses_stored_medians_without_refitting(minimal_vcf_bytes, feat
     artifact["booster"] = _mock_booster_proba([0.8, 0.1, 0.1])
 
     with patch("genomic_ancestry_pipeline.prediction.np") as mock_np:
-        mock_np.median = MagicMock(side_effect=AssertionError("median must not be recomputed at inference"))
-        mock_np.nanmedian = MagicMock(side_effect=AssertionError("nanmedian must not be recomputed at inference"))
+        mock_np.median = MagicMock(
+            side_effect=AssertionError("median must not be recomputed at inference")
+        )
+        mock_np.nanmedian = MagicMock(
+            side_effect=AssertionError("nanmedian must not be recomputed at inference")
+        )
         mock_np.array = np.array
         mock_np.zeros = np.zeros
 
@@ -136,7 +141,7 @@ def test_inference_applies_stored_feature_registry(minimal_vcf_bytes, feature_re
     booster = _mock_booster_proba([0.7, 0.2, 0.1])
     artifact["booster"] = booster
 
-    result = predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
+    predict(minimal_vcf_bytes, artifact=artifact, model_artifact_version="models/run1/")
 
     predict_call_X = booster.predict_proba.call_args[0][0]
     assert predict_call_X.shape[1] == len(feature_registry.features)

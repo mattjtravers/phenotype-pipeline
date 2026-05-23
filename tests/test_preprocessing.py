@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from genomic_ancestry_pipeline.models import RawSnpDataset, RawVariant, SampleMetadata
 from genomic_ancestry_pipeline.preprocessing import PreprocessingError, preprocess
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
@@ -73,7 +72,10 @@ def test_every_sample_has_split_field(raw_dataset):
 def test_missingness_filter_drops_high_missing_variants(sample_metadata):
     """Variants with training-split missing rate above the threshold are dropped."""
     samples = [f"s{i:02d}" for i in range(1, 11)]
-    labels = {s: ("blue" if i < 5 else ("brown" if i < 9 else "green")) for i, s in enumerate(samples, 1)}
+    labels = {
+        s: ("blue" if i < 5 else ("brown" if i < 9 else "green"))
+        for i, s in enumerate(samples, 1)
+    }
     meta = SampleMetadata(population={s: "EUR" for s in samples}, phenotype_labels=labels)
 
     # high-missing variant: 5/8 training samples have None → 62.5% missing rate (> 0.10)
@@ -101,7 +103,10 @@ def test_missingness_filter_drops_high_missing_variants(sample_metadata):
 def test_missingness_filter_runs_before_imputation(sample_metadata):
     """Dropped variants never appear in imputation_medians."""
     samples = [f"s{i:02d}" for i in range(1, 11)]
-    labels = {s: ("blue" if i < 5 else ("brown" if i < 9 else "green")) for i, s in enumerate(samples, 1)}
+    labels = {
+        s: ("blue" if i < 5 else ("brown" if i < 9 else "green"))
+        for i, s in enumerate(samples, 1)
+    }
     meta = SampleMetadata(population={s: "EUR" for s in samples}, phenotype_labels=labels)
 
     high_missing = {f"s{i:02d}": (None if i <= 6 else "0|0") for i in range(1, 11)}
@@ -124,7 +129,10 @@ def test_imputation_medians_computed_from_training_split_only(sample_metadata):
     # Variant: training samples all have dosage 0; test samples all have dosage 2.
     # Training-only median = 0. Full-data median = 1.
     samples = [f"s{i:02d}" for i in range(1, 11)]
-    labels = {s: ("blue" if i < 5 else ("brown" if i < 9 else "green")) for i, s in enumerate(samples, 1)}
+    labels = {
+        s: ("blue" if i < 5 else ("brown" if i < 9 else "green"))
+        for i, s in enumerate(samples, 1)
+    }
     meta = SampleMetadata(population={s: "EUR" for s in samples}, phenotype_labels=labels)
 
     # variant_id will be "15_100_A_G"
@@ -140,7 +148,6 @@ def test_imputation_medians_computed_from_training_split_only(sample_metadata):
     result = preprocess(dataset, random_state=0)
 
     vid = "15_100_A_G"
-    train_samples = [s for s, sp in result.sample_splits.items() if sp == "train"]
     # All training samples should have dosage 0 → median = 0
     assert result.imputation_medians[vid] == 0.0
 

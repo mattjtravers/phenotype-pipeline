@@ -6,14 +6,12 @@ Streamlit AppTest and are marked with @pytest.mark.integration.
 """
 from __future__ import annotations
 
-import json
 import logging
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests as req
-
-from pathlib import Path
 
 from genomic_ancestry_pipeline.ui import (
     count_vcf_samples,
@@ -22,7 +20,6 @@ from genomic_ancestry_pipeline.ui import (
     sample_label_from_filename,
     validate_vcf_upload,
 )
-
 
 # ── File upload validation ─────────────────────────────────────────────────────
 
@@ -125,8 +122,10 @@ def test_valid_submission_dispatches_http_post(minimal_vcf_bytes):
         "model_artifact_version": "models/20240115-a3f2c1/",
     }
 
-    with patch("genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response) as mock_post:
-        result = dispatch_prediction(
+    with patch(
+        "genomic_ancestry_pipeline.ui.requests.post", return_value=mock_response
+    ) as mock_post:
+        dispatch_prediction(
             vcf_bytes=minimal_vcf_bytes,
             api_endpoint="https://api.example.com",
         )
@@ -383,7 +382,10 @@ def test_uploaded_file_wins_over_sample(minimal_vcf_bytes, tmp_path):
     from genomic_ancestry_pipeline.models import PredictionResult
 
     sample_vcf = tmp_path / "sample_blue_eyes.vcf"
-    sample_content = b"##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample_file\n"
+    sample_content = (
+        b"##fileformat=VCFv4.1\n"
+        b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample_file\n"
+    )
     sample_vcf.write_bytes(sample_content)
 
     mock_result = PredictionResult(
@@ -514,7 +516,10 @@ def test_unexpected_exception_logs_with_traceback(caplog, minimal_vcf_bytes):
             )
             at.button[0].click().run()
 
-    error_records = [r for r in caplog.records if r.levelno >= logging.ERROR and "dispatch_prediction failed" in r.getMessage()]
+    error_records = [
+        r for r in caplog.records
+        if r.levelno >= logging.ERROR and "dispatch_prediction failed" in r.getMessage()
+    ]
     assert len(error_records) > 0
     assert any(r.exc_info is not None for r in error_records)
 
