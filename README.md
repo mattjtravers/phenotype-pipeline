@@ -40,14 +40,12 @@ The system coordinates data from ingestion to deployment. Each state transition 
 
 ---
 
-## The Spec-Driven Pattern
+## Features
 
-This project utilizes [Linked-Intent Development (LID)](https://github.com/jszmajda/lid) to reduce configuration drift, enforce strict boundary runtime validation, and maintain alignment between requirements and implementation.
-
-* **Requirements Traceability via EARS:** System logic is structured around the Easy Approach to Requirements Syntax (EARS) framework. Every engineering decision maps back to a documented product behavior in the specifications directory, allowing verification of system intent through targeted integration testing.
-* **Deterministic Boundary Validation:** Untyped arrays and loose JSON structures are rejected at component entry points. The pipeline relies on Pydantic models to validate genomic features, sample indices, and inference payloads at runtime. Malformed genomic inputs trigger controlled, fast-failing validations before reaching downstream training algorithms or hosting resources.
-* **Infrastructure as Code (IaC) via AWS SAM:** Cloud infrastructure definitions are maintained inside version-controlled template files. This setup bypasses manual AWS Console configurations, ensuring consistency between local testing environments and deployed staging resources.
-* **Production Traceability & Observability:** Predictions are output alongside their calculated confidence metrics and the localized identification tags of the specific SNPs that influenced the classification model. The software architecture routes standardized log signatures directly to standard output and error streams, allowing performance tracking in AWS CloudWatch without custom parsing scripts.
+* **Spec-Driven Ingestion Pipelines:** Translates structural biological specifications into deterministic Python data pipelines, using Pydantic to enforce runtime schema validation and eliminate silent data corruption.
+* **Production AWS Infrastructure via IaC:** Provisions and manages the entire cloud footprint—including API Gateway, AWS Lambda, and IAM roles—using AWS SAM templates to guarantee zero configuration drift.
+* **Automated Cloud Training Workflows:** Coordinates data handoffs from local environments to AWS SageMaker for structured XGBoost training, utilizing Amazon S3 as a secure feature and model artifact store.
+* **Enterprise Observability & Logging:** Integrates structured logging directly into the Python application runtime, enabling native AWS CloudWatch monitoring and alerting without custom parsing overhead.
 
 ---
 
